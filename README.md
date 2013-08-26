@@ -24,6 +24,7 @@ Or install it yourself as:
 Itrp.configure do |config|
   config.api_token = 'd41f5868feb65fc87fa2311a473a8766ea38bc40'
   config.account = 'my-sandbox'
+  config.logger = Rails.logger
   ...
 end
 ```

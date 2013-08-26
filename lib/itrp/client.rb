@@ -49,6 +49,7 @@ module Itrp
       @ssl = !!(host =~ /^https/)
       host = host.gsub(/https?:\/\//, '')
       @domain, @port = host =~ /^(.*):(\d+)$/ ? [$1, $2.to_i] : [host, @ssl ? 443 : 80]
+      @logger = @options[:logger]
     end
 
     # Retrieve an option
@@ -62,7 +63,7 @@ module Itrp
     # Returns total nr of resources yielded (handy for logging)
     def each(path, params = {}, &block)
       # retrieve the resources using the max page size (least nr of API calls)
-      next_path = expand_path(path, params.merge({:per_page => MAX_PAGE_SIZE, :page => 1}))
+      next_path = expand_path(path, {:per_page => MAX_PAGE_SIZE, :page => 1}.merge(params))
       size = 0
       while next_path
         # retrieve the records (with retry and optionally wait for rate-limit)
@@ -173,7 +174,7 @@ module Itrp
     # Send a request to ITRP and wrap the HTTP Response in an Itrp::Response
     # Guaranteed to return a Response, thought it may be +empty?+
     def _send(request)
-      Itrp.logger.info { "Sending #{request.method} request to #{@domain}:#{@port}#{request.path}" }
+      @logger.debug { "Sending #{request.method} request to #{@domain}:#{@port}#{request.path}" }
       _response = begin
         http_with_proxy = option(:proxy_host).blank? ? Net::HTTP : Net::HTTP::Proxy(option(:proxy_host), option(:proxy_port), option(:proxy_user), option(:proxy_password))
         http = http_with_proxy.new(@domain, @port)
@@ -183,7 +184,13 @@ module Itrp
       rescue ::Exception => e
         Struct.new(:body, :message, :code, :header).new(nil, "No Response from Server - #{e.message} for '#{@domain}:#{@port}#{request.path}'", 500, {})
       end
-      Itrp::Response.new(request, _response)
+      response = Itrp::Response.new(request, _response)
+      if response.valid?
+        @logger.debug { "Response:\n#{JSON.pretty_generate(response.json)}" }
+      else
+        @logger.error { "Request failed: #{response.message}" }
+      end
+      response
     end
 
     # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:rate_limit_block+
@@ -192,7 +199,7 @@ module Itrp
       now = Time.now
       begin
         _response = _send_without_rate_limit_block(request)
-        Itrp.logger.warn { "Request throttled, trying again in 5 minutes: #{_response.message}" } and sleep(300) if _response.throttled?
+        @logger.warn { "Request throttled, trying again in 5 minutes: #{_response.message}" } and sleep(300) if _response.throttled?
       end while _response.throttled? && (Time.now - now) < 3660 # max 1 hour and 1 minute
       _response
     end
@@ -205,7 +212,7 @@ module Itrp
       total_retry_time = 0
       begin
         _response = _send_without_retries(request)
-        Itrp.logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
+        @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
         total_retry_time += sleep_time
         sleep_time *= 2
       end while _response.empty? && total_retry_time < option(:max_retry_time)
@@ -222,7 +229,7 @@ module Net
     alias_method :original_use_ssl=, :use_ssl=
 
     def use_ssl=(flag)
-      self.ca_file = File.expand_path("./ca-bundle.crt", __FILE__)
+      self.ca_file = File.expand_path("../ca-bundle.crt", __FILE__) if flag
       self.verify_mode = OpenSSL::SSL::VERIFY_PEER
       self.original_use_ssl = flag
     end
