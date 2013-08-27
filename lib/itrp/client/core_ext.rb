@@ -39,36 +39,39 @@ class Object
       when private_method_defined?(without_method)
         private target
     end
+  end unless method_defined?(:alias_method_chain)
+
+  unless method_defined?(:try)
+    # Invokes the method identified by the symbol +method+, passing it any arguments
+    # and/or the block specified, just like the regular Ruby <tt>Object#send</tt> does.
+    #
+    # *Unlike* that method however, a +NoMethodError+ exception will *not* be raised
+    # and +nil+ will be returned instead, if the receiving object is a +nil+ object or NilClass.
+    #
+    # ==== Examples
+    #
+    # Without try
+    #   @person && @person.name
+    # or
+    #   @person ? @person.name : nil
+    #
+    # With try
+    #   @person.try(:name)
+    #
+    # +try+ also accepts arguments and/or a block, for the method it is trying
+    #   Person.try(:find, 1)
+    #   @people.try(:collect) {|p| p.name}
+    #--
+    # This method definition below is for rdoc purposes only. The alias_method call
+    # below overrides it as an optimization since +try+ behaves like +Object#send+,
+    # unless called on +NilClass+.
+    def try(method, *args, &block)
+      send(method, *args, &block)
+    end
+    remove_method :try
+    alias_method :try, :__send__
   end
 
-  # Invokes the method identified by the symbol +method+, passing it any arguments
-  # and/or the block specified, just like the regular Ruby <tt>Object#send</tt> does.
-  #
-  # *Unlike* that method however, a +NoMethodError+ exception will *not* be raised
-  # and +nil+ will be returned instead, if the receiving object is a +nil+ object or NilClass.
-  #
-  # ==== Examples
-  #
-  # Without try
-  #   @person && @person.name
-  # or
-  #   @person ? @person.name : nil
-  #
-  # With try
-  #   @person.try(:name)
-  #
-  # +try+ also accepts arguments and/or a block, for the method it is trying
-  #   Person.try(:find, 1)
-  #   @people.try(:collect) {|p| p.name}
-  #--
-  # This method definition below is for rdoc purposes only. The alias_method call
-  # below overrides it as an optimization since +try+ behaves like +Object#send+,
-  # unless called on +NilClass+.
-  def try(method, *args, &block)
-    send(method, *args, &block)
-  end
-  remove_method :try
-  alias_method :try, :__send__
 end
 
 class NilClass #:nodoc:
@@ -92,30 +95,8 @@ class Object
   #   if !address.blank?
   def blank?
     respond_to?(:empty?) ? empty? : !self
-  end
+  end unless method_defined?(:blank?)
 
-  # An object is present if it's not blank.
-  def present?
-    !blank?
-  end
-
-  # Returns object if it's #present? otherwise returns nil.
-  # object.presence is equivalent to object.present? ? object : nil.
-  #
-  # This is handy for any representation of objects where blank is the same
-  # as not present at all.  For example, this simplifies a common check for
-  # HTTP POST/query parameters:
-  #
-  #   state   = params[:state]   if params[:state].present?
-  #   country = params[:country] if params[:country].present?
-  #   region  = state || country || 'US'
-  #
-  # ...becomes:
-  #
-  #   region = params[:state].presence || params[:country].presence || 'US'
-  def presence
-    self if present?
-  end
 end
 
 class NilClass #:nodoc:
@@ -137,11 +118,11 @@ class TrueClass #:nodoc:
 end
 
 class Array #:nodoc:
-  alias_method :blank?, :empty?
+  alias_method :blank?, :empty? unless method_defined?(:blank?)
 end
 
 class Hash #:nodoc:
-  alias_method :blank?, :empty?
+  alias_method :blank?, :empty? unless method_defined?(:blank?)
 end
 
 class String #:nodoc:

@@ -98,6 +98,30 @@ describe Itrp::Client do
 
   end
 
+  context 'each' do
+    before(:each) do
+      @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+    end
+
+    it 'should yield each result' do
+      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
+      nr_of_requests = @client.each('requests', {fields: 'subject'}) do |request|
+        request['subject'].should == "Subject #{request['id']}"
+      end
+      nr_of_requests.should == 3
+    end
+
+    it 'should retrieve multiple pages' do
+      stub_page1 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=1&per_page=2').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="next",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
+      stub_page2 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=2&per_page=2').to_return(body: [{id: 3, subject: 'Subject 3'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="prev",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
+      nr_of_requests = @client.each('requests', {per_page: 2}) do |request|
+        request['subject'].should == "Subject #{request['id']}"
+      end
+      nr_of_requests.should == 3
+      stub_page2.should have_been_requested
+    end
+  end
+
   context 'get' do
     before(:each) do
       @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
@@ -106,7 +130,7 @@ describe Itrp::Client do
     it 'should return a response' do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(body: {name: 'my name'}.to_json)
       response = @client.get('me')
-      response['name'].should == 'my name'
+      response[:name].should == 'my name'
     end
 
     describe 'parameters' do
@@ -144,30 +168,6 @@ describe Itrp::Client do
     end
   end
 
-  context 'each' do
-    before(:each) do
-      @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-    end
-
-    it 'should yield each result' do
-      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
-      nr_of_requests = @client.each('requests', {fields: 'subject'}) do |request|
-        request['subject'].should == "Subject #{request['id']}"
-      end
-      nr_of_requests.should == 3
-    end
-
-    it 'should retrieve multiple pages' do
-      stub_page1 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=1&per_page=2').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="next",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
-      stub_page2 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=2&per_page=2').to_return(body: [{id: 3, subject: 'Subject 3'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="prev",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
-      nr_of_requests = @client.each('requests', {per_page: 2}) do |request|
-        request['subject'].should == "Subject #{request['id']}"
-      end
-      nr_of_requests.should == 3
-      stub_page2.should have_been_requested
-    end
-  end
-
   context 'put' do
     it 'should send put requests with parameters and headers' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
@@ -183,6 +183,12 @@ describe Itrp::Client do
       stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {'name' => 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
       response = client.post('people', {'name' => 'New Name'}, {'X-ITRP-Custom' => 'custom'})
       stub.should have_been_requested
+    end
+  end
+
+  context 'import' do
+    it 'should import a CSV file' do
+
     end
   end
 

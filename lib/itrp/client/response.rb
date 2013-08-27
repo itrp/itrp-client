@@ -35,8 +35,11 @@ module Itrp
 
     # retrieve a value from the resource
     # if the JSON value is an Array a array with the value for each resource will be given
-    def[](key)
-      (@is_array ||= json.is_a?(Array)) ? json.map{ |resource| resource[key.to_s] } : json[key.to_s]
+    # @param keys: a single key or a key-path seperated by comma
+    def[](*keys)
+      values = json.is_a?(Array) ? json : [json]
+      keys.each { |key| values = values.map{ |value| value.is_a?(Hash) ? value[key.to_s] : nil} }
+      json.is_a?(Array) ? values : values.first
     end
 
     # +true+ if no 'message' is given (and the JSON could be parsed)

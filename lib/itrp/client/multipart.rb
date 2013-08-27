@@ -24,17 +24,15 @@ module Itrp
         fp = []
 
         params.each do |k, v|
-          # Are we trying to make a file parameter?
-          if v.respond_to?(:path) and v.respond_to?(:read) then
+          if v.respond_to?(:path) && v.respond_to?(:read)
             fp.push(FileParam.new(k, v.path, v.read))
-            # We must be trying to make a regular parameter
           else
             fp.push(StringParam.new(k, v))
           end
         end
 
         # Assemble the request body using the special multipart format
-        query = fp.collect {|p| "--" + BOUNDARY + "\r\n" + p.to_multipart }.join("")  + "--" + BOUNDARY + "--"
+        query = fp.map{ |p| "--#{BOUNDARY}\r\n#{p.to_multipart}" }.join  + "--#{BOUNDARY}--"
         return query, HEADER
       end
     end
@@ -51,7 +49,7 @@ module Itrp
       end
 
       def to_multipart
-        return "Content-Disposition: form-data; name=\"#{CGI::escape(k)}\"\r\n\r\n#{v}\r\n"
+        return %(Content-Disposition: form-data; name="#{CGI::escape(k)}"\r\n\r\n#{v}\r\n)
       end
     end
 
@@ -67,11 +65,9 @@ module Itrp
       end
 
       def to_multipart
-        # If we can tell the possible mime-type from the filename, use the
-        # first in the list; otherwise, use "application/octet-stream"
+        # If we can tell the possible mime-type from the filename, use the first in the list; otherwise, use "application/octet-stream"
         mime_type = MIME::Types.type_for(filename)[0] || MIME::Types["application/octet-stream"][0]
-        return "Content-Disposition: form-data; name=\"#{CGI::escape(k)}\"; filename=\"#{ filename }\"\r\n" +
-            "Content-Type: #{ mime_type.simplified }\r\n\r\n#{ content }\r\n"
+        return %(Content-Disposition: form-data; name="#{CGI::escape(k)}"; filename="#{filename}"\r\nContent-Type: #{ mime_type.simplified }\r\n\r\n#{ content }\r\n)
       end
     end
   end

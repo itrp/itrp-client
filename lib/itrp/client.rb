@@ -95,13 +95,25 @@ module Itrp
     end
 
     # upload a CSV file to import
-    # @param filename: The location of the CSV file
+    # @param csv: The CSV File or the location of the CSV file
     # @param type: The type, e.g. person, organization, people_contact_details
-    def import(filename, type)
-      data, headers = Itrp::Multipart::Post.prepare_query('type' => type, 'file' => File.open(filename, 'r'))
+    def import(csv, type, block_until_completed = false)
+      csv = File.open(csv, 'r') unless cvs.respond_to?(:path) && cvs.respond_to?(:read)
+      data, headers = Itrp::Multipart::Post.prepare_query('type' => type, 'file' => csv)
       request = Net::HTTP::Post.new(expand_path('/import'), expand_header(headers))
       request.body = data
-      _send(request)
+      response = _send(request)
+
+      if block_until_completed && response.valid?
+        token = response[:token]
+        while true
+          response = get("/import/#{token}")
+          # wait if the response is OK and import is still busy
+          break unless response.valid? && response[:state].in?(['queued', 'processing'])
+        end
+      end
+
+      response
     end
 
     private
