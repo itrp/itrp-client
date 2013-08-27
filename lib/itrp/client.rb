@@ -1,5 +1,11 @@
 %w(net/http json uri date time net/https open-uri itrp).each{ |f| require f }
-%w(version response multipart core_ext).each{ |f| require "itrp/client/#{f}" }
+%w(version response multipart).each{ |f| require "itrp/client/#{f}" }
+
+# cherry-pick some core extensions from active support
+require 'active_support/core_ext/module/aliasing.rb'
+require 'active_support/core_ext/object/blank'
+require 'active_support/core_ext/object/try.rb'
+require 'active_support/core_ext/hash/indifferent_access'
 
 module Itrp
   class Client

@@ -106,7 +106,7 @@ describe Itrp::Client do
     it 'should yield each result' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
       nr_of_requests = @client.each('requests', {fields: 'subject'}) do |request|
-        request['subject'].should == "Subject #{request['id']}"
+        request[:subject].should == "Subject #{request[:id]}"
       end
       nr_of_requests.should == 3
     end
@@ -115,7 +115,7 @@ describe Itrp::Client do
       stub_page1 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=1&per_page=2').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="next",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
       stub_page2 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=2&per_page=2').to_return(body: [{id: 3, subject: 'Subject 3'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="prev",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
       nr_of_requests = @client.each('requests', {per_page: 2}) do |request|
-        request['subject'].should == "Subject #{request['id']}"
+        request[:subject].should == "Subject #{request[:id]}"
       end
       nr_of_requests.should == 3
       stub_page2.should have_been_requested

@@ -21,7 +21,8 @@ module Itrp
     # If the response is not +valid?+ it is a Hash with 'message' and optionally 'errors'
     def json
       @json ||= begin
-        JSON.parse(@response.body)
+        data = JSON.parse(@response.body)
+        data.is_a?(Array) ? data.map(&:with_indifferent_access) : data.with_indifferent_access
       rescue ::Exception => e
         { 'message' => @response.is_a?(Net::HTTPSuccess) ? "Invalid JSON - #{e.message} for:\n#{@response.body}" : @response.body.nil? ? @response.message : @response.body }
       end
@@ -38,7 +39,7 @@ module Itrp
     # @param keys: a single key or a key-path seperated by comma
     def[](*keys)
       values = json.is_a?(Array) ? json : [json]
-      keys.each { |key| values = values.map{ |value| value.is_a?(Hash) ? value[key.to_s] : nil} }
+      keys.each { |key| values = values.map{ |value| value.is_a?(Hash) ? value[key] : nil} }
       json.is_a?(Array) ? values : values.first
     end
 
