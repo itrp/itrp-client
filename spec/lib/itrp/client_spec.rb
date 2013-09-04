@@ -23,7 +23,7 @@ describe Itrp::Client do
 
     it 'should override the Itrp configuration' do
       client = Itrp::Client.new(host: 'https://demo.itrp.com', api_token: 'unknown', block_at_rate_limit: true)
-      client.option(:read_timeout).should == 60              # default value
+      client.option(:read_timeout).should == 25              # default value
       client.option(:host).should == 'https://demo.itrp.com' # default value overridden in Client.new
       client.option(:api_token).should == 'unknown'          # value set using Itrp.config and overridden in Client.new
       client.option(:max_retry_time).should == 120           # value overridden in Itrp.config
@@ -187,29 +187,78 @@ describe Itrp::Client do
   end
 
   context 'import' do
-    it 'should import a CSV file' do
+    before(:each) do
+      @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+      @multi_part_body = "--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\npeople\r\n--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/home/mathijs/dev/itrp-client/spec/support/fixtures/people.csv\"\r\nContent-Type: text/csv\r\n\r\nPrimary Email,Name\nchess.cole@example.com,Chess Cole\ned.turner@example.com,Ed Turner\r\n--0123456789ABLEWASIEREISAWELBA9876543210--"
+      @multi_part_headers = {'Accept'=>'*/*', 'Content-Type'=>'multipart/form-data; boundary=0123456789ABLEWASIEREISAWELBA9876543210', 'User-Agent'=>'Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en-us) AppleWebKit/523.10.6 (KHTML, like Gecko) Version/3.0.4 Safari/523.10.6'}
 
+      @import_queued_response = {body: {state: 'queued'}.to_json}
+      @import_processing_response = {body: {state: 'processing'}.to_json}
+      @import_done_response = {body: {state: 'done', results: {errors: 0, updated: 1, created: 1, failures: 0, unchanged: 0, deleted: 0}}.to_json}
+      @import_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
+      @server_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
     end
+
+    it 'should import a CSV file' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      response = @client.import(File.new("#{@fixture_dir}/people.csv"), 'people')
+      response[:token].should == '68ef5ef0f64c0'
+    end
+
+    it 'should import a CSV file' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      response = @client.import("#{@fixture_dir}/people.csv", 'people')
+      response[:token].should == '68ef5ef0f64c0'
+    end
+
+    it 'should wait for the import to complete' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_done_response)
+      response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
+      response[:state].should == 'done'
+      response[:results][:updated].should == 1
+      progess_stub.should have_been_requested.times(3)
+    end
+
+    it 'should wait for the import to fail' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_failed_response)
+      response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
+      response[:state].should == 'error'
+      response[:message].should == 'Invalid byte sequence in UTF-8 on line 2'
+      progess_stub.should have_been_requested.times(3)
+    end
+
+    it 'should not continue when there is an error connecting to ITRP' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response).then.to_raise(StandardError.new('network error'))
+      response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
+
+      response.valid?.should == false
+      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'"
+      progess_stub.should have_been_requested.times(3)
+    end
+
   end
 
   context 'retry' do
     it 'should not retry when max_retry_time = -1' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_raise(StandardError.new('network error'))
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-      expect_log("Request failed: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :error)
+      expect_log("Request failed: 500: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :error)
 
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       response = client.get('me')
       stub.should have_been_requested.times(1)
       response.valid?.should == false
-      response.message.should == "No Response from Server - network error for 'api.itrp.com:443/v1/me'"
+      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/me'"
     end
 
     it 'should not retry 4 times when max_retry_time = 16' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_raise(StandardError.new('network error'))
       [2,4,8,16].each_with_index do |secs, i|
         expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-        expect_log("Request failed, retry ##{i+1} in #{secs} seconds: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :warn)
+        expect_log("Request failed, retry ##{i+1} in #{secs} seconds: 500: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :warn)
       end
 
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: 16)
@@ -217,13 +266,13 @@ describe Itrp::Client do
       response = client.get('me')
       stub.should have_been_requested.times(4)
       response.valid?.should == false
-      response.message.should == "No Response from Server - network error for 'api.itrp.com:443/v1/me'"
+      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/me'"
     end
 
     it 'should return the response after retry succeeds' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_raise(StandardError.new('network error')).then.to_return(body: {name: 'my name'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-      expect_log("Request failed, retry #1 in 2 seconds: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :warn)
+      expect_log("Request failed, retry #1 in 2 seconds: 500: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :warn)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
       expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug )
 
@@ -240,19 +289,19 @@ describe Itrp::Client do
     it 'should not block on rate limit when block_at_rate_limit is false' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(:status => 429, :body => {message: 'Too Many Requests'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-      expect_log("Request failed: Too Many Requests", :error)
+      expect_log("Request failed: 429: Too Many Requests", :error)
 
       client = Itrp::Client.new(api_token: 'secret', block_at_rate_limit: false)
       response = client.get('me')
       stub.should have_been_requested.times(1)
       response.valid?.should == false
-      response.message.should == 'Too Many Requests'
+      response.message.should == '429: Too Many Requests'
     end
 
     it 'should block on rate limit when block_at_rate_limit is true' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(:status => 429, :body => {message: 'Too Many Requests'}.to_json).then.to_return(body: {name: 'my name'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-      expect_log('Request throttled, trying again in 5 minutes: Too Many Requests', :warn)
+      expect_log('Request throttled, trying again in 5 minutes: 429: Too Many Requests', :warn)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
       expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug )
 

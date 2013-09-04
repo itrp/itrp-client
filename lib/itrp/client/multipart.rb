@@ -1,4 +1,5 @@
 require 'cgi'
+require 'mime/types'
 
 # Takes a hash of string and file parameters and returns a string of text
 # formatted to be sent as a multipart form post.

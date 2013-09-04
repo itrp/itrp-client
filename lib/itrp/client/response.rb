@@ -20,27 +20,29 @@ module Itrp
     # The JSON value, if single resource is queried this is a Hash, if multiple resources where queried it is an Array
     # If the response is not +valid?+ it is a Hash with 'message' and optionally 'errors'
     def json
-      @json ||= begin
-        data = JSON.parse(@response.body)
-        data.is_a?(Array) ? data.map(&:with_indifferent_access) : data.with_indifferent_access
+      return @json if defined?(@json)
+      # no body, no json
+      data = {message: @response.message.blank? ? 'empty body' : @response.message} if @response.body.blank?
+      begin
+        data ||= JSON.parse(@response.body)
       rescue ::Exception => e
-        { 'message' => @response.is_a?(Net::HTTPSuccess) ? "Invalid JSON - #{e.message} for:\n#{@response.body}" : @response.body.nil? ? @response.message : @response.body }
+        data = { message: "Invalid JSON - #{e.message} for:\n#{@response.body}" }
       end
+      # indifferent access to hashes
+      data = data.is_a?(Array) ? data.map(&:with_indifferent_access) : data.with_indifferent_access
+      # prepend HTTP response code to message
+      data[:message] = "#{response.code}: #{data[:message]}" unless @response.is_a?(Net::HTTPSuccess)
+      @json = data
     end
 
-    # The nr of resources found
-    def size
-      @size ||= message ? 0 : json.is_a?(Array) ? json.size : 1
+    # the error message in case the response is not +valid?+
+    def message
+      @message ||= json.is_a?(Hash) ? json[:message] : nil
     end
-    alias :count :size
 
-    # retrieve a value from the resource
-    # if the JSON value is an Array a array with the value for each resource will be given
-    # @param keys: a single key or a key-path seperated by comma
-    def[](*keys)
-      values = json.is_a?(Array) ? json : [json]
-      keys.each { |key| values = values.map{ |value| value.is_a?(Hash) ? value[key] : nil} }
-      json.is_a?(Array) ? values : values.first
+    # +true+ if the server did not respond at all
+    def empty?
+      @response.body.nil?
     end
 
     # +true+ if no 'message' is given (and the JSON could be parsed)
@@ -48,10 +50,20 @@ module Itrp
       message.nil?
     end
 
-    # the error message in case the response is not +valid?+
-    def message
-      @message ||= @response.is_a?(Net::HTTPSuccess) ? nil : json.is_a?(Hash) ? json['message'] : "#{@response.code}: #{@response.message}"
+    # retrieve a value from the resource
+    # if the JSON value is an Array a array with the value for each resource will be given
+    # @param keys: a single key or a key-path separated by comma
+    def[](*keys)
+      values = json.is_a?(Array) ? json : [json]
+      keys.each { |key| values = values.map{ |value| value.is_a?(Hash) ? value[key] : nil} }
+      json.is_a?(Array) ? values : values.first
     end
+
+    # The nr of resources found
+    def size
+      @size ||= message ? 0 : json.is_a?(Array) ? json.size : 1
+    end
+    alias :count :size
 
     # pagination - per page
     def per_page
@@ -65,7 +77,7 @@ module Itrp
 
     # pagination - total pages
     def total_pages
-      @total_pages ||= @response.header['X-Pagination-Total-Page'].to_i
+      @total_pages ||= @response.header['X-Pagination-Total-Pages'].to_i
     end
 
     # pagination - total entries
@@ -87,16 +99,11 @@ module Itrp
 
     # +true+ if the response is invalid because of throttling
     def throttled?
-      @response.code.to_s == '429' || (message && message =~ /Too Many Requests/)
-    end
-
-    # +true+ if the server did not respond at all
-    def empty?
-      @response.body.nil?
+      !!(@response.code.to_s == '429' || (message && message =~ /Too Many Requests/))
     end
 
     def to_s
-      valid? ? json.to_s : "#{@response.code}: #{message}"
+      valid? ? json.to_s : message
     end
 
   end

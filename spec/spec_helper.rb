@@ -22,6 +22,7 @@ RSpec.configure do |config|
     log_dir = File.dirname(__FILE__) + '/log'
     Dir.mkdir(log_dir) unless File.exists?(log_dir)
     Itrp.configuration.logger = Logger.new("#{log_dir}/test.log")
+    @fixture_dir = "#{dir}/support/fixtures"
   end
   config.after(:each) { Itrp.configuration.reset }
 

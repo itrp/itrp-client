@@ -43,7 +43,7 @@ All options available:
                   the sleep time between retries starts at 2 seconds and doubles after each retry
                   retry times: 2, 6, 18, 54, 162, 486, 1458, 4374, 13122, ... seconds
                   one retry will always be performed unless you set the value to -1
-* read_timeout:   HTTP GET read timeout in seconds (default = 60)
+* read_timeout:   HTTP GET read timeout in seconds (default = 25)
 * block_at_rate_limit: Set to +true+ to block the request until the rate limit is lifted, default: +false+
                        @see http://developer.itrp.com/v1/#rate-limiting
 

@@ -11,7 +11,7 @@ describe Itrp do
     conf[:api_version].should == 'v1'
 
     conf[:max_retry_time].should == 5400
-    conf[:read_timeout].should == 60
+    conf[:read_timeout].should == 25
     conf[:block_at_rate_limit].should == false
 
     conf[:proxy_port].should == 8080

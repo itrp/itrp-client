@@ -15,11 +15,11 @@ module Itrp
     # Create a new ITRP Client
     #
     # Shared configuration for all ITRP Clients:
-    # Itrp.configure do |config|
-    #   config.api_token = 'd41f5868feb65fc87fa2311a473a8766ea38bc40'
-    #   config.account = 'my-sandbox'
-    #   ...
-    # end
+    #   Itrp.configure do |config|
+    #     config.api_token = 'd41f5868feb65fc87fa2311a473a8766ea38bc40'
+    #     config.account = 'my-sandbox'
+    #     ...
+    #   end
     #
     # Override configuration per ITRP Client:
     # itrp = Itrp::Client.new(account: 'trusted-sandbox')
@@ -38,7 +38,7 @@ module Itrp
     #                    the sleep time between retries starts at 2 seconds and doubles after each retry
     #                    retry times: 2, 6, 18, 54, 162, 486, 1458, 4374, 13122, ... seconds
     #                    one retry will always be performed unless you set the value to -1
-    #  - read_timeout:   HTTP GET read timeout in seconds (default = 60)
+    #  - read_timeout:   HTTP GET read timeout in seconds (default = 25)
     #  - block_at_rate_limit: Set to +true+ to block the request until the rate limit is lifted, default: +false+
     #                         @see http://developer.itrp.com/v1/#rate-limiting
     #
@@ -104,7 +104,7 @@ module Itrp
     # @param csv: The CSV File or the location of the CSV file
     # @param type: The type, e.g. person, organization, people_contact_details
     def import(csv, type, block_until_completed = false)
-      csv = File.open(csv, 'r') unless cvs.respond_to?(:path) && cvs.respond_to?(:read)
+      csv = File.open(csv, 'r') unless csv.respond_to?(:path) && csv.respond_to?(:read)
       data, headers = Itrp::Multipart::Post.prepare_query('type' => type, 'file' => csv)
       request = Net::HTTP::Post.new(expand_path('/import'), expand_header(headers))
       request.body = data
@@ -115,7 +115,7 @@ module Itrp
         while true
           response = get("/import/#{token}")
           # wait if the response is OK and import is still busy
-          break unless response.valid? && response[:state].in?(['queued', 'processing'])
+          break unless response.valid? && ['queued', 'processing'].include?(response[:state])
         end
       end
 

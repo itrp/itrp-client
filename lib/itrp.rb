@@ -15,7 +15,7 @@ module Itrp
     has :source, classes: String
 
     has :max_retry_time, classes: Fixnum, default: 5400
-    has :read_timeout, classes: Fixnum, default: 60
+    has :read_timeout, classes: Fixnum, default: 25
     has :block_at_rate_limit, classes: [TrueClass, FalseClass], default: false
 
     has :proxy_host, classes: String
