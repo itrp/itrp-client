@@ -1,6 +1,6 @@
 # Itrp::Client
 
-Client for accessing the ITRP REST API
+Client for accessing the [ITRP REST API](http://developer.itrp.com/v1/)
 
 ## Installation
 
@@ -16,9 +16,9 @@ Or install it yourself as:
 
     $ gem install itrp-client
 
-## Usage
+## Configuration
 
-### Configuration
+### Global
 
 ```
 Itrp.configure do |config|
@@ -30,50 +30,198 @@ end
 ```
 
 All options available:
-* logger:      The Ruby Logger instance, default: Logger.new(STDOUT)
-* host:        The ITRP API host, default: 'https://api.itrp.com'
-* api_version: The ITRP API version, default: 'v1'
-* api_token:   *required* The ITRP API token
-* account:     Specify a different (trusted) account to work with
-               @see http://developer.itrp.com/v1/#multiple-accounts
-* source:      The Source used when creating new records
-               @see http://developer.itrp.com/v1/general/source/
 
-* max_retry_time: maximum nr of seconds to wait for server to respond (default = 5400 = 1.5 hours)
-                  the sleep time between retries starts at 2 seconds and doubles after each retry
-                  retry times: 2, 6, 18, 54, 162, 486, 1458, 4374, 13122, ... seconds
-                  one retry will always be performed unless you set the value to -1
-* read_timeout:   HTTP GET read timeout in seconds (default = 25)
-* block_at_rate_limit: Set to +true+ to block the request until the rate limit is lifted, default: +false+
-                       @see http://developer.itrp.com/v1/#rate-limiting
+* _logger_:         The [Ruby Logger](http://www.ruby-doc.org/stdlib-1.9.3/libdoc/logger/rdoc/Logger.html) instance, default: `Logger.new(STDOUT)`
+* _host_:           The [ITRP API host](http://developer.itrp.com/v1/#service-url), default: 'https://api.itrp.com'
+* _api_version_:    The [ITRP API version](http://developer.itrp.com/v1/#service-url), default: 'v1'
+* _api_token_:      (**required**) The [ITRP API token](http://developer.itrp.com/v1/#api-tokens)
+* _account_:        Specify a [different account](http://developer.itrp.com/v1/#multiple-accounts) to work with
+* _source_:         The [source](http://developer.itrp.com/v1/general/source/) used when creating new records
+* _max_retry_time_: maximum nr of seconds to wait for server to respond (default = 5400 = 1.5 hours)<br/>
+  The sleep time between retries starts at 2 seconds and doubles after each retry, i.e.
+  2, 6, 18, 54, 162, 486, 1458, 4374, 13122, ... seconds.<br/>
+  One retry will always be performed unless you set the value to -1.
+* _read_timeout_:   [HTTP read timeout](http://ruby-doc.org/stdlib-2.0.0/libdoc/net/http/rdoc/Net/HTTP.html#method-i-read_timeout-3D) in seconds (default = 25)
+* _block_at_rate_limit_: Set to `true` to block the request until the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is lifted, default: `false`
+* _proxy_host_:     Define in case HTTP traffic needs to go through a proxy
+* _proxy_port_:     Port of the proxy, defaults to 8080
+* _proxy_user_:     Proxy user
+* _proxy_password_: Proxy password
 
-* proxy_host:     Define in case HTTP traffic needs to go through a proxy
-* proxy_port:     Port of the proxy, defaults to 8080
-* proxy_user:     Proxy user
-* proxy_password: Proxy password
+### Override
 
-### ITRP Client
+Each time an ITRP Client is instantiated it is possible to override the [global configuration](#global-configuration) like so:
 
 ```
-client = Itrp::Client.new
+client = Itrp::Client.new(:account => 'trusted-sandbox', :source => 'my special integration')
+```
+
+## ITRP Client
+
+Minimal example:
+
+```
+client = Itrp::Client.new(api_token: '3a4e4590179263839...')
 response = client.get('me')
 puts response[:primary_email]
 ```
 
-Override global configuration per client:
+### Retrieve a single record
+
+The `get` method can be used to retrieve a single record from ITRP.
 
 ```
-client = Itrp::Client.new(:account => 'trusted-sandbox')
-response = client.get('people/20')
-puts response[:primary_email]
+response = Itrp::Client.new.get('organizations/4321')
+puts response[:name]
 ```
 
-TODO: More documentation (each, put, post, import, response metadata)
+By default this call will return all [fields](http://developer.itrp.com/v1/organizations/#fields) of the Organization.
 
-## Contributing
+The fields can be accessed using *symbols* and *strings*, and it is possible chain a number of keys in one go:
+```
+response = Itrp::Client.new.get('organizations/4321')
+puts response[:parent][:name]    # this may throw an error when +parent+ is +nil+
+puts response[:parent, :name]    # using this format you will retrieve +nil+ when +parent+ is +nil+
+puts response['parent', 'name']  # strings are also accepted as keys
+```
 
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+### Browse through a collection of records
+
+Although the `get` method can be also used to retrieve a collection of records from ITRP, the preferred way is to use the `each` method.
+
+```
+count = Itrp::Client.new.each('organizations') do |organization|
+  puts organization[:name]
+end
+puts "Found #{count} organizations"
+```
+
+By default this call will return all [collection fields](http://developer.itrp.com/v1/organizations/#collection-fields) for each Organization.
+For more fields, check out the [field selection](http://developer.itrp.com/v1/general/field_selection/#collection-of-resources) documentation.
+
+The fields can be accessed using *symbols* and *strings*, and it is possible chain a number of keys in one go:
+```
+count = Itrp::Client.new.each('organizations', fields: 'parent') do |organization|
+  puts organization[:parent][:name]    # this may throw an error when +parent+ is +nil+
+  puts organization[:parent, :name]    # using this format you will retrieve +nil+ when +parent+ is +nil+
+  puts organization['parent', 'name']  # strings are also accepted as keys
+end
+```
+
+Note that an `Itrp::Exception` could be thrown in case one of the API requests fails. When using the [blocking options](#blocking) the chances of this happening are rather small and you may decide not to explicitly catch the `Itrp::Exception` here, but leave it up to a generic exception handler.
+
+### Retrieve a collection of records
+
+The `each` method [described above](#browse-through-a-collection-of-records) is the preferred way to work with collections of data.
+
+If you really want to [paginate](http://developer.itrp.com/v1/general/pagination/) yourself, the `get` method is your friend.
+
+```
+@client = Itrp::Client.new
+response = @client.get('organizations', {per_page: 10, page: 2})
+
+puts response.json # all data in an array
+
+puts "showing page #{response.current_page}/#{response.total_pages}, with #{response.per_page} records per page"
+puts "total number of records #{response.total_entries}"
+
+# retrieve collection for other pages directly from the response
+first_page = @client.get(response.pagination_link(:first))
+prev_page  = @client.get(response.pagination_link(:prev))
+next_page  = @client.get(response.pagination_link(:next))
+last_page  = @client.get(response.pagination_link(:last))
+```
+
+By default this call will return all [collection fields](http://developer.itrp.com/v1/organizations/#collection-fields) for each Organization.
+For more fields, check out the [field selection](http://developer.itrp.com/v1/general/field_selection/#collection-of-resources) documentation.
+
+The fields can be accessed using *symbols* and *strings*, and it is possible chain a number of keys in one go:
+```
+response = Itrp::Client.new.get('organizations', {per_page: 10, page: 2, fields: 'parent'})
+puts response[:parent, :name]    # an array with the parent organization names
+puts response['parent', 'name']  # strings are also accepted as keys
+```
+
+### Create a new record
+
+Creating new records is done using the `post` method.
+
+```
+response = Itrp::Client.new.post('people', {primary_email: 'new.user@example.com', organization_id: 777})
+if response.valid?
+  puts "New person created with id #{response[:id]}"
+else
+  puts response.message
+end
+```
+
+Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
+
+### Update an existing record
+
+Updating records is done using the `put` method.
+
+```
+response = Itrp::Client.new.put('people/888', {name: 'Mrs. Susan Smith', organization_id: 777})
+if response.valid?
+  puts "Person with id #{response[:id]} successfully updated"
+else
+  puts response.message
+end
+```
+
+Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
+
+### Importing CSV files
+
+ITRP also provides an [Import API](http://developer.itrp.com/v1/import/). The ITRP Client can be used to upload files to that API.
+
+```
+response = Itrp::Client.new.import('\tmp\people.csv', 'people')
+if response.valid?
+  puts "Import queued with token #{response[:token}"
+else
+  puts "Import upload failed: #{response.message}"
+end
+
+```
+
+The second argument contains the [import type](http://developer.itrp.com/v1/import/#parameters).
+
+It is also possible to [monitor the progress](http://developer.itrp.com/v1/import/#import-progress) of the import and block until the import is complete. In that case you will need to add some exception handling to your code.
+
+```
+begin
+  response = Itrp::Client.new.import('\tmp\people.csv', 'people', true)
+  puts response[:state]
+  puts response[:results]
+  puts response[:message]
+catch Itrp::UploadFailed => ex
+  puts "Could not upload the people import file: #{ex.message}"
+catch Itrp::Exception => ex
+  puts "Unable to monitor progress of the people import: #{ex.message}"
+end
+```
+
+Note that blocking for the import to finish is required when you import multiple CSVs that are dependent on each other.
+
+
+### Blocking
+
+By default all actions on the ITRP Client will block until the ITRP API is accessible, see the _max_retry_time_ option in the [configuration](#global-configuration). This is especially helpfull for flaky internet connections.
+
+By setting the _block_at_rate_limit_ to `true` in the [configuration](#global-configuration) all actions will also block in case the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is reached. The action is retried every 5 minutes until the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is lifted again, which might take up to 1 hour.
+
+### Exception handling
+
+The standard methods `get`, `post`, `put` and `delete` will always return a Response with an [error message](http://developer.itrp.com/v1/#http-status-codes) in case something went wrong.
+
+By calling `response.valid?` you will know if the action succeeded or not, and `response.message` provides additinal information in case the response was invalid.
+
+```
+response = Itrp::Client.new.get('organizations/1a2b')
+puts response.valid?
+puts response.message
+```
+
+The methods `each` and `import` may throw an `Itrp::Exception` in case something failed, see the examples above.
