@@ -64,9 +64,8 @@ module Itrp
     end
 
     # Yield all retrieved resources one-by-one for the given (paged) API query.
-    # Blocks (!) when the Rate Limit is exceeded, see http://developer.itrp.com/v1/#rate-limiting
-    # Raises an ::Itrp::Exception with the message from ITRP when anything else fails
-    # Returns total nr of resources yielded (handy for logging)
+    # Raises an ::Itrp::Exception with the response retrieved from ITRP is invalid
+    # Returns total nr of resources yielded (for logging)
     def each(path, params = {}, &block)
       # retrieve the resources using the max page size (least nr of API calls)
       next_path = expand_path(path, {:per_page => MAX_PAGE_SIZE, :page => 1}.merge(params))
@@ -103,6 +102,8 @@ module Itrp
     # upload a CSV file to import
     # @param csv: The CSV File or the location of the CSV file
     # @param type: The type, e.g. person, organization, people_contact_details
+    # @raise Itrp::UploadFailed in case the file could was not accepted by ITRP and +block_until_completed+ is +true+
+    # @raise Itrp::Exception in case the import progress could not be monitored
     def import(csv, type, block_until_completed = false)
       csv = File.open(csv, 'r') unless csv.respond_to?(:path) && csv.respond_to?(:read)
       data, headers = Itrp::Multipart::Post.prepare_query('type' => type, 'file' => csv)
@@ -110,12 +111,14 @@ module Itrp
       request.body = data
       response = _send(request)
 
-      if block_until_completed && response.valid?
+      if block_until_completed
+        raise ::Itrp::UploadFailed.new("Failed to queue #{type} import. #{response.message}") unless response.valid?
         token = response[:token]
         while true
           response = get("/import/#{token}")
+          raise ::Itrp::Exception.new("Unable to monitor progress for #{type} import. #{response.message}") unless response.valid?
           # wait if the response is OK and import is still busy
-          break unless response.valid? && ['queued', 'processing'].include?(response[:state])
+          break unless ['queued', 'processing'].include?(response[:state])
         end
       end
 

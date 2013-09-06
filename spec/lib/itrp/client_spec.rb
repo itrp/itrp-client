@@ -213,30 +213,39 @@ describe Itrp::Client do
 
     it 'should wait for the import to complete' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_done_response)
+      progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_done_response)
       response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
       response[:state].should == 'done'
       response[:results][:updated].should == 1
-      progess_stub.should have_been_requested.times(3)
+      progress_stub.should have_been_requested.times(3)
     end
 
     it 'should wait for the import to fail' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_failed_response)
-      response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
-      response[:state].should == 'error'
-      response[:message].should == 'Invalid byte sequence in UTF-8 on line 2'
-      progess_stub.should have_been_requested.times(3)
+      progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_failed_response)
+
+      expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. Invalid byte sequence in UTF-8 on line 2")
+      progress_stub.should have_been_requested.times(3)
     end
 
     it 'should not continue when there is an error connecting to ITRP' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progess_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response).then.to_raise(StandardError.new('network error'))
-      response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
+      progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response).then.to_raise(StandardError.new('network error'))
 
+      expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. 500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'")
+      progress_stub.should have_been_requested.times(3)
+    end
+
+    it 'should return an invalid response in case waiting for progress is false' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
+      response = @client.import("#{@fixture_dir}/people.csv", 'people', false)
       response.valid?.should == false
-      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'"
-      progess_stub.should have_been_requested.times(3)
+      response.message.should == 'oops!'
+    end
+
+    it 'should raise an UploadFailed exception in case waiting for progress is true' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
+      expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::UploadFailed, 'Failed to queue people import. oops!')
     end
 
   end

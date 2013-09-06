@@ -29,4 +29,7 @@ module Itrp
   end
 
   class Exception < ::Exception; end # ::Itrp::Exception class
+
+  class UploadFailed < Exception; end # ::Itrp::UploadFailed class
+
 end
