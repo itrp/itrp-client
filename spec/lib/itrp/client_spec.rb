@@ -197,15 +197,18 @@ describe Itrp::Client do
       @import_done_response = {body: {state: 'done', results: {errors: 0, updated: 1, created: 1, failures: 0, unchanged: 0, deleted: 0}}.to_json}
       @import_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
       @server_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
+      allow(@client).to receive(:sleep)
     end
 
     it 'should import a CSV file' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      expect_log("Import file '#{@fixture_dir}/people.csv' successfully uploaded with token '68ef5ef0f64c0'.")
+
       response = @client.import(File.new("#{@fixture_dir}/people.csv"), 'people')
       response[:token].should == '68ef5ef0f64c0'
     end
 
-    it 'should import a CSV file' do
+    it 'should import a CSV file by filename' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
       response = @client.import("#{@fixture_dir}/people.csv", 'people')
       response[:token].should == '68ef5ef0f64c0'
@@ -214,6 +217,20 @@ describe Itrp::Client do
     it 'should wait for the import to complete' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
       progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_done_response)
+
+      # verify the correct log statement are made
+      expect_log('Sending POST request to api.itrp.com:443/v1/import', :debug)
+      expect_log("Response:\n{\n  \"token\": \"68ef5ef0f64c0\"\n}", :debug)
+      expect_log("Import file '#{@fixture_dir}/people.csv' successfully uploaded with token '68ef5ef0f64c0'.")
+      expect_log('Sending GET request to api.itrp.com:443/v1/import/68ef5ef0f64c0', :debug)
+      expect_log("Response:\n{\n  \"state\": \"queued\"\n}", :debug)
+      expect_log("Import of '#{@fixture_dir}/people.csv' is queued. Checking again in 30 seconds.", :debug)
+      expect_log('Sending GET request to api.itrp.com:443/v1/import/68ef5ef0f64c0', :debug)
+      expect_log("Response:\n{\n  \"state\": \"processing\"\n}", :debug)
+      expect_log("Import of '#{@fixture_dir}/people.csv' is processing. Checking again in 30 seconds.", :debug)
+      expect_log('Sending GET request to api.itrp.com:443/v1/import/68ef5ef0f64c0', :debug)
+      expect_log("Response:\n{\n  \"state\": \"done\",\n  \"results\": {\n    \"errors\": 0,\n    \"updated\": 1,\n    \"created\": 1,\n    \"failures\": 0,\n    \"unchanged\": 0,\n    \"deleted\": 0\n  }\n}", :debug)
+
       response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
       response[:state].should == 'done'
       response[:results][:updated].should == 1

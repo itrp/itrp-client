@@ -110,6 +110,7 @@ module Itrp
       request = Net::HTTP::Post.new(expand_path('/import'), expand_header(headers))
       request.body = data
       response = _send(request)
+      @logger.info { "Import file '#{csv.path}' successfully uploaded with token '#{response[:token]}'." } if response.valid?
 
       if block_until_completed
         raise ::Itrp::UploadFailed.new("Failed to queue #{type} import. #{response.message}") unless response.valid?
@@ -117,8 +118,10 @@ module Itrp
         while true
           response = get("/import/#{token}")
           raise ::Itrp::Exception.new("Unable to monitor progress for #{type} import. #{response.message}") unless response.valid?
-          # wait if the response is OK and import is still busy
+          # wait 30 seconds while the response is OK and import is still busy
           break unless ['queued', 'processing'].include?(response[:state])
+          @logger.debug { "Import of '#{csv.path}' is #{response[:state]}. Checking again in 30 seconds." }
+          sleep(30)
         end
       end
 
