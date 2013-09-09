@@ -71,14 +71,14 @@ describe Itrp::Client do
     end
 
     it 'should add the X-ITRP-Account header' do
-      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, :account => 'test')
+      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, account: 'test')
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'X-ITRP-Account' => 'test'}).to_return(body: {name: 'my name'}.to_json)
       response = client.get('me')
       stub.should have_been_requested
     end
 
     it 'should add the X-ITRP-Source header' do
-      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, :source => 'myapp')
+      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, source: 'myapp')
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'X-ITRP-Source' => 'myapp'}).to_return(body: {name: 'my name'}.to_json)
       response = client.get('me')
       stub.should have_been_requested
@@ -162,7 +162,7 @@ describe Itrp::Client do
       it 'should append parameters' do
         now = DateTime.now
         stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/people?id!=15&primary_email=me@example.com').to_return(body: {name: 'my name'}.to_json)
-        response = @client.get('people?id!=15', {'primary_email' => 'me@example.com'})
+        response = @client.get('people?id!=15', {primary_email: 'me@example.com'})
         stub.should have_been_requested
       end
     end
@@ -171,8 +171,8 @@ describe Itrp::Client do
   context 'put' do
     it 'should send put requests with parameters and headers' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-      stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/1').with(body: {'name' => 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 1}.to_json)
-      response = client.put('people/1', {'name' => 'New Name'}, {'X-ITRP-Custom' => 'custom'})
+      stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/1').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 1}.to_json)
+      response = client.put('people/1', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
       stub.should have_been_requested
     end
   end
@@ -180,8 +180,8 @@ describe Itrp::Client do
   context 'post' do
     it 'should send post requests with parameters and headers' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-      stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {'name' => 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
-      response = client.post('people', {'name' => 'New Name'}, {'X-ITRP-Custom' => 'custom'})
+      stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
+      response = client.post('people', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
       stub.should have_been_requested
     end
   end
@@ -296,7 +296,7 @@ describe Itrp::Client do
 
   context 'rate limiting' do
     it 'should not block on rate limit when block_at_rate_limit is false' do
-      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(:status => 429, :body => {message: 'Too Many Requests'}.to_json)
+      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(status: 429, body: {message: 'Too Many Requests'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
       expect_log("Request failed: 429: Too Many Requests", :error)
 
@@ -308,7 +308,7 @@ describe Itrp::Client do
     end
 
     it 'should block on rate limit when block_at_rate_limit is true' do
-      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(:status => 429, :body => {message: 'Too Many Requests'}.to_json).then.to_return(body: {name: 'my name'}.to_json)
+      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(status: 429, body: {message: 'Too Many Requests'}.to_json).then.to_return(body: {name: 'my name'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
       expect_log('Request throttled, trying again in 5 minutes: 429: Too Many Requests', :warn)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )

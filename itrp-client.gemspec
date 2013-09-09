@@ -4,14 +4,16 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'itrp/client/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "itrp-client"
-  spec.version       = Itrp::Client::VERSION
-  spec.authors       = ["ITRP"]
-  spec.email         = %q{developers@itrp.com}
-  spec.description   = %q{Client for accessing the ITRP REST API}
-  spec.summary       = %q{Client for accessing the ITRP REST API}
-  spec.homepage      = "https://developer.itrp.com"
-  spec.license       = "MIT"
+  spec.name                  = "itrp-client"
+  spec.version               = Itrp::Client::VERSION
+  spec.platform              = Gem::Platform::RUBY
+  spec.required_ruby_version = '>= 1.9.3'
+  spec.authors               = ["ITRP"]
+  spec.email                 = %q{developers@itrp.com}
+  spec.description           = %q{Client for accessing the ITRP REST API}
+  spec.summary               = %q{Client for accessing the ITRP REST API}
+  spec.homepage              = "https://developer.itrp.com"
+  spec.license               = "MIT"
 
   spec.files = Dir.glob("lib/**/*") + [
       "LICENSE.txt",

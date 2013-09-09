@@ -68,7 +68,7 @@ module Itrp
     # Returns total nr of resources yielded (for logging)
     def each(path, params = {}, &block)
       # retrieve the resources using the max page size (least nr of API calls)
-      next_path = expand_path(path, {:per_page => MAX_PAGE_SIZE, :page => 1}.merge(params))
+      next_path = expand_path(path, {per_page: MAX_PAGE_SIZE, page: 1}.merge(params))
       size = 0
       while next_path
         # retrieve the records (with retry and optionally wait for rate-limit)
@@ -106,7 +106,7 @@ module Itrp
     # @raise Itrp::Exception in case the import progress could not be monitored
     def import(csv, type, block_until_completed = false)
       csv = File.open(csv, 'r') unless csv.respond_to?(:path) && csv.respond_to?(:read)
-      data, headers = Itrp::Multipart::Post.prepare_query('type' => type, 'file' => csv)
+      data, headers = Itrp::Multipart::Post.prepare_query(type: type, file: csv)
       request = Net::HTTP::Post.new(expand_path('/import'), expand_header(headers))
       request.body = data
       response = _send(request)
@@ -155,9 +155,9 @@ module Itrp
 
     # Expand the given path with the parameters
     # Examples:
-    #   :person_id => 5
+    #   person_id: 5
     #   :"updated_at=>" => yesterday
-    #   :fields => ["id", "created_at", "sourceID"]
+    #   fields: ["id", "created_at", "sourceID"]
     def expand_path(path, params = {})
       path = path.dup
       path = "/#{path}" unless path =~ /^\// # make sure path starts with /

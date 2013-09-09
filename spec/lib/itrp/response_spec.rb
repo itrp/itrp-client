@@ -19,7 +19,7 @@ describe Itrp::Response do
         time_format_24h: false,
         time_zone: 'Central Time (US & Canada)'
     }
-    stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(:body => @person_hash.to_json)
+    stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(body: @person_hash.to_json)
     @response_hash = @client.get('me')
 
     @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
@@ -28,7 +28,7 @@ describe Itrp::Response do
         {id: 560, name: 'Lucas', organization: { id: 20, name: 'ITRP Institute', office: { name: 'The Office'}}, site: {id: 14, name: 'IT Training Facility'} },
         {id: 561, name: 'Sheryl', organization: { id: 20, name: 'ITRP Institute'}, site: {id: 14, name: 'IT Training Facility'} }
     ]
-    stub_request(:get, 'https://secret:@api.itrp.com/v1/people').to_return(:body => @people_array.to_json)
+    stub_request(:get, 'https://secret:@api.itrp.com/v1/people').to_return(body: @people_array.to_json)
     @response_array = @client.get('people')
   end
 
@@ -70,7 +70,7 @@ describe Itrp::Response do
     end
 
     it 'should add a message if the body is empty' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 429, :body => nil)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
       response = @client.get('organizations')
 
       message = '429: empty body'
@@ -80,7 +80,7 @@ describe Itrp::Response do
     end
 
     it 'should add a message if the HTTP response is not OK' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 429, :body => {message: 'Too Many Requests'}.to_json)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: {message: 'Too Many Requests'}.to_json)
       response = @client.get('organizations')
 
       message = '429: Too Many Requests'
@@ -90,7 +90,7 @@ describe Itrp::Response do
     end
 
     it 'should add a message if the JSON body cannot be parsed' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:body => '==$$!invalid')
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(body: '==$$!invalid')
       response = @client.get('organizations')
 
       message = "Invalid JSON - 746: unexpected token at '==$$!invalid' for:\n#{response.body}"
@@ -110,7 +110,7 @@ describe Itrp::Response do
   end
 
   it 'should define empty' do
-    stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 429, :body => nil)
+    stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
     response = @client.get('organizations')
 
     response.empty?.should == true
@@ -244,13 +244,13 @@ describe Itrp::Response do
     end
 
     it 'should check the return code' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 429, :body => nil)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
       response = @client.get('organizations')
       response.throttled?.should == true
     end
 
     it 'should check the return message' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 500, :body => {message: 'Too Many Requests'} )
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 500, body: {message: 'Too Many Requests'} )
       response = @client.get('organizations')
       response.throttled?.should == true
     end
@@ -262,7 +262,7 @@ describe Itrp::Response do
     end
 
     it 'should return the message in case the response is not valid' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(:status => 429, :body => nil)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
       response = @client.get('organizations')
       response.to_s.should == '429: empty body'
     end

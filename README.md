@@ -53,7 +53,7 @@ All options available:
 Each time an ITRP Client is instantiated it is possible to override the [global configuration](#global-configuration) like so:
 
 ```
-client = Itrp::Client.new(:account => 'trusted-sandbox', :source => 'my special integration')
+client = Itrp::Client.new(account: 'trusted-sandbox', source: 'my special integration')
 ```
 
 ## ITRP Client
