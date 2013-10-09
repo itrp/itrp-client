@@ -267,6 +267,78 @@ describe Itrp::Client do
 
   end
 
+
+  context 'export' do
+    before(:each) do
+      @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+
+      @export_queued_response = {body: {state: 'queued'}.to_json}
+      @export_processing_response = {body: {state: 'processing'}.to_json}
+      @export_done_response = {body: {state: 'done', url: 'https://download.example.com/export.zip?AWSAccessKeyId=12345'}.to_json}
+      allow(@client).to receive(:sleep)
+    end
+
+    it 'should export multiple types' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people,people_contact_details'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      expect_log("Export for 'people,people_contact_details' successfully queued with token '68ef5ef0f64c0'.")
+
+      response = @client.export(['people', 'people_contact_details'])
+      response[:token].should == '68ef5ef0f64c0'
+    end
+
+    it 'should export since a certain time' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people', from: '2012-03-30T23:00:00+00:00'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      expect_log("Export for 'people' successfully queued with token '68ef5ef0f64c0'.")
+
+      response = @client.export('people', DateTime.new(2012,03,30,23,00,00))
+      response[:token].should == '68ef5ef0f64c0'
+    end
+
+    it 'should wait for the export to complete' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/export/68ef5ef0f64c0').to_return(@export_queued_response, @export_processing_response, @export_done_response)
+
+      # verify the correct log statement are made
+      expect_log('Sending POST request to api.itrp.com:443/v1/export', :debug)
+      expect_log(%(Response:\n{\n  "token": "68ef5ef0f64c0"\n}), :debug)
+      expect_log("Export for 'people' successfully queued with token '68ef5ef0f64c0'.")
+      expect_log('Sending GET request to api.itrp.com:443/v1/export/68ef5ef0f64c0', :debug)
+      expect_log(%(Response:\n{\n  "state": "queued"\n}), :debug)
+      expect_log("Export of 'people' is queued. Checking again in 30 seconds.", :debug)
+      expect_log('Sending GET request to api.itrp.com:443/v1/export/68ef5ef0f64c0', :debug)
+      expect_log(%(Response:\n{\n  "state": "processing"\n}), :debug)
+      expect_log("Export of 'people' is processing. Checking again in 30 seconds.", :debug)
+      expect_log('Sending GET request to api.itrp.com:443/v1/export/68ef5ef0f64c0', :debug)
+      expect_log(%(Response:\n{\n  "state": "done",\n  "url": "https://download.example.com/export.zip?AWSAccessKeyId=12345"\n}), :debug)
+
+      response = @client.export('people', nil, true)
+      response[:state].should == 'done'
+      response[:url].should == 'https://download.example.com/export.zip?AWSAccessKeyId=12345'
+      progress_stub.should have_been_requested.times(3)
+    end
+
+    it 'should not continue when there is an error connecting to ITRP' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
+      progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/export/68ef5ef0f64c0').to_return(@export_queued_response, @export_processing_response).then.to_raise(StandardError.new('network error'))
+
+      expect{ @client.export('people', nil, true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for 'people' export. 500: No Response from Server - network error for 'api.itrp.com:443/v1/export/68ef5ef0f64c0'")
+      progress_stub.should have_been_requested.times(3)
+    end
+
+    it 'should return an invalid response in case waiting for progress is false' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people'}).to_return(body: {message: 'oops!'}.to_json)
+      response = @client.export('people')
+      response.valid?.should == false
+      response.message.should == 'oops!'
+    end
+
+    it 'should raise an UploadFailed exception in case waiting for progress is true' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people'}).to_return(body: {message: 'oops!'}.to_json)
+      expect{ @client.export('people', nil, true) }.to raise_error(Itrp::UploadFailed, "Failed to queue 'people' export. oops!")
+    end
+
+  end
+
   context 'retry' do
     it 'should not retry when max_retry_time = -1' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_raise(StandardError.new('network error'))

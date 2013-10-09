@@ -157,6 +157,7 @@ end
 
 Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
 
+
 ### Update an existing record
 
 Updating records is done using the `put` method.
@@ -172,6 +173,7 @@ end
 
 Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
 
+
 ### Importing CSV files
 
 ITRP also provides an [Import API](http://developer.itrp.com/v1/import/). The ITRP Client can be used to upload files to that API.
@@ -179,7 +181,7 @@ ITRP also provides an [Import API](http://developer.itrp.com/v1/import/). The IT
 ```
 response = Itrp::Client.new.import('\tmp\people.csv', 'people')
 if response.valid?
-  puts "Import queued with token #{response[:token}"
+  puts "Import queued with token #{response[:token]}"
 else
   puts "Import upload failed: #{response.message}"
 end
@@ -206,11 +208,49 @@ end
 Note that blocking for the import to finish is required when you import multiple CSVs that are dependent on each other.
 
 
+### Exporting CSV files
+
+ITRP also provides an [Export API](http://developer.itrp.com/v1/export/). The ITRP Client can be used to download (zipped) CSV files using that API.
+
+```
+response = Itrp::Client.new.export(['people', 'people_contact_details'], DateTime.new(2012,03,30,23,00,00))
+if response.valid?
+  puts "Export queued with token #{response[:token]}"
+else
+  puts "Export failed: #{response.message}"
+end
+
+```
+
+The first argument contains the [export types](http://developer.itrp.com/v1/export/#parameters).
+The second argument is optional and limits the export to all changed records since the given time.
+
+It is also possible to [monitor the progress](http://developer.itrp.com/v1/export/#export-progress) of the export and block until the export is complete. In that case you will need to add some exception handling to your code.
+
+```
+require 'open-uri'
+
+begin
+  response = Itrp::Client.new.export(['people', 'people_contact_details'], nil, true)
+  puts response[:state]
+  # write the export file to disk
+  File.open('/tmp/export.zip', 'wb') { |f| f.write(open(response[:url]).read) }
+catch Itrp::UploadFailed => ex
+  puts "Could not queue the people export: #{ex.message}"
+catch Itrp::Exception => ex
+  puts "Unable to monitor progress of the people export: #{ex.message}"
+end
+```
+
+Note that blocking for the export to finish is recommended as you will get direct access to the exported file.
+
+
 ### Blocking
 
 By default all actions on the ITRP Client will block until the ITRP API is accessible, see the _max_retry_time_ option in the [configuration](#global-configuration). This is especially helpfull for flaky internet connections.
 
 By setting the _block_at_rate_limit_ to `true` in the [configuration](#global-configuration) all actions will also block in case the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is reached. The action is retried every 5 minutes until the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is lifted again, which might take up to 1 hour.
+
 
 ### Exception handling
 

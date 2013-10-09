@@ -128,6 +128,33 @@ module Itrp
       response
     end
 
+    # Export CSV files
+    # @param types: The types to export, e.g. person, organization, people_contact_details
+    # @param from: Retrieve all files since a given data and time
+    # @param block_until_completed: Set to true to monitor the export progress
+    # @raise Itrp::Exception in case the export progress could not be monitored
+    def export(types, from = nil, block_until_completed = false)
+      data = {type: [types].flatten.join(',')}
+      data[:from] = from unless from.blank?
+      response = post('/export', data)
+      @logger.info { "Export for '#{data[:type]}' successfully queued with token '#{response[:token]}'." } if response.valid?
+
+      if block_until_completed
+        raise ::Itrp::UploadFailed.new("Failed to queue '#{data[:type]}' export. #{response.message}") unless response.valid?
+        token = response[:token]
+        while true
+          response = get("/export/#{token}")
+          raise ::Itrp::Exception.new("Unable to monitor progress for '#{data[:type]}' export. #{response.message}") unless response.valid?
+          # wait 30 seconds while the response is OK and export is still busy
+          break unless ['queued', 'processing'].include?(response[:state])
+          @logger.debug { "Export of '#{data[:type]}' is #{response[:state]}. Checking again in 30 seconds." }
+          sleep(30)
+        end
+      end
+
+      response
+    end
+
     private
 
     # create a request (place data in body if the request becomes too large)
