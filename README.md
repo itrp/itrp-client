@@ -61,6 +61,8 @@ client = Itrp::Client.new(account: 'trusted-sandbox', source: 'my special integr
 Minimal example:
 
 ```
+require 'itrp/client'
+
 client = Itrp::Client.new(api_token: '3a4e4590179263839...')
 response = client.get('me')
 puts response[:primary_email]

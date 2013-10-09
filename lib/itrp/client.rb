@@ -93,6 +93,7 @@ module Itrp
     def put(path, data = {}, header = {})
       _send(json_request(Net::HTTP::Put, path, data, header))
     end
+    alias_method :patch, :put
 
     # send HTTPS POST request and return instance of Itrp::Response
     def post(path, data = {}, header = {})

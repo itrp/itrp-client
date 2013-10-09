@@ -49,6 +49,7 @@ module Itrp
     def valid?
       message.nil?
     end
+    alias_method :success?, :valid?
 
     # retrieve a value from the resource
     # if the JSON value is an Array a array with the value for each resource will be given
