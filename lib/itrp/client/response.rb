@@ -12,6 +12,7 @@ module Itrp
     def response
       @response
     end
+    alias_method :raw, :response
 
     def body
       @response.body
@@ -22,7 +23,7 @@ module Itrp
     def json
       return @json if defined?(@json)
       # no body, no json
-      data = {message: @response.message.blank? ? 'empty body' : @response.message} if @response.body.blank?
+      data = {message: @response.message.blank? ? 'empty body' : @response.message.strip} if @response.body.blank?
       begin
         data ||= JSON.parse(@response.body)
       rescue ::Exception => e
@@ -30,6 +31,8 @@ module Itrp
       end
       # indifferent access to hashes
       data = data.is_a?(Array) ? data.map(&:with_indifferent_access) : data.with_indifferent_access
+      # empty OK response is not seen as an error
+      data = {} if data.is_a?(Hash) && data.size == 1 && data[:message] == 'OK'
       # prepend HTTP response code to message
       data[:message] = "#{response.code}: #{data[:message]}" unless @response.is_a?(Net::HTTPSuccess)
       @json = data

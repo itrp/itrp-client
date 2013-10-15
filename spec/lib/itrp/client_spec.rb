@@ -186,10 +186,63 @@ describe Itrp::Client do
     end
   end
 
+  context 'attachments' do
+    before(:each) do
+      @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+    end
+
+    it 'should not log an error for XML responses' do
+      xml = %(<?xml version="1.0" encoding="UTF-8"?>\n<details>some info</details>)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(body: xml)
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug)
+      expect_log("XML response:\n#{xml}", :debug)
+      response = @client.get('me')
+      response.valid?.should == false
+      response.raw.body.should == xml
+    end
+
+    it 'should not log an error for redirects' do
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(body: '', status: 303, headers: {'Location' => 'http://redirect.example.com/to/here'})
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug)
+      expect_log('Redirect: http://redirect.example.com/to/here', :debug)
+      response = @client.get('me')
+      response.valid?.should == false
+      response.raw.body.should == nil
+    end
+
+    it "should not parse attachments for get requests" do
+      expect(Itrp::Attachments).not_to receive(:new)
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/requests/777?attachments=/tmp/first.png,/tmp/second.zip&note=note').to_return(body: {id: 777, upload_called: false}.to_json)
+
+      response = @client.get('/requests/777', {note: 'note', attachments: ['/tmp/first.png', '/tmp/second.zip'] })
+      response.valid?.should == true
+      response[:upload_called].should == false
+    end
+
+    [:post, :put].each do |method|
+      it "should parse attachments for #{method} requests" do
+        attachments = double('Itrp::Attachments')
+        expect(attachments).to receive(:upload_attachments!) do |path, data|
+          expect(path).to eq '/requests/777'
+          expect(data[:attachments]).to eq ['/tmp/first.png', '/tmp/second.zip']
+          data.delete(:attachments)
+          data[:note_attachments] = 'processed'
+        end
+        expect(Itrp::Attachments).to receive(:new).with(@client){ attachments }
+        stub_request(method, 'https://secret:@api.itrp.com/v1/requests/777').with(body: {note: 'note', note_attachments: 'processed' }).to_return(body: {id: 777, upload_called: true}.to_json)
+
+        response = @client.send(method, '/requests/777', {note: 'note', attachments: ['/tmp/first.png', '/tmp/second.zip'] })
+        response.valid?.should == true
+        response[:upload_called].should == true
+      end
+    end
+
+  end
+
   context 'import' do
     before(:each) do
       @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-      @multi_part_body = "--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\npeople\r\n--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"file\"; filename=\"/home/mathijs/dev/itrp-client/spec/support/fixtures/people.csv\"\r\nContent-Type: text/csv\r\n\r\nPrimary Email,Name\nchess.cole@example.com,Chess Cole\ned.turner@example.com,Ed Turner\r\n--0123456789ABLEWASIEREISAWELBA9876543210--"
+      @multi_part_body = "--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\npeople\r\n--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"file\"; filename=\"#{@fixture_dir}/people.csv\"\r\nContent-Type: text/csv\r\n\r\nPrimary Email,Name\nchess.cole@example.com,Chess Cole\ned.turner@example.com,Ed Turner\r\n--0123456789ABLEWASIEREISAWELBA9876543210--"
       @multi_part_headers = {'Accept'=>'*/*', 'Content-Type'=>'multipart/form-data; boundary=0123456789ABLEWASIEREISAWELBA9876543210', 'User-Agent'=>'Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en-us) AppleWebKit/523.10.6 (KHTML, like Gecko) Version/3.0.4 Safari/523.10.6'}
 
       @import_queued_response = {body: {state: 'queued'}.to_json}

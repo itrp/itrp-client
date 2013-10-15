@@ -1,5 +1,16 @@
-%w(net/http json uri date time net/https open-uri itrp).each{ |f| require f }
-%w(version response multipart).each{ |f| require "itrp/client/#{f}" }
+require 'net/http'
+require 'json'
+require 'uri'
+require 'date'
+require 'time'
+require 'net/https'
+require 'open-uri'
+require 'itrp'
+
+require 'itrp/client/version'
+require 'itrp/client/response'
+require 'itrp/client/multipart'
+require 'itrp/client/attachments'
 
 # cherry-pick some core extensions from active support
 require 'active_support/core_ext/module/aliasing.rb'
@@ -51,10 +62,7 @@ module Itrp
       [:host, :api_version, :api_token].each do |required_option|
         raise ::Itrp::Exception.new("Missing required configuration option #{required_option}") if option(required_option).blank?
       end
-      host = option(:host)
-      @ssl = !!(host =~ /^https/)
-      host = host.gsub(/https?:\/\//, '')
-      @domain, @port = host =~ /^(.*):(\d+)$/ ? [$1, $2.to_i] : [host, @ssl ? 443 : 80]
+      @ssl, @domain, @port = ssl_domain_port_path(option(:host))
       @logger = @options[:logger]
     end
 
@@ -156,10 +164,15 @@ module Itrp
       response
     end
 
+    def logger
+      @logger
+    end
+
     private
 
     # create a request (place data in body if the request becomes too large)
     def json_request(request_class, path, data = {}, header = {})
+      Itrp::Attachments.new(self).upload_attachments!(path, data)
       request = request_class.new(expand_path(path), expand_header(header))
       body = {}
       data.each{ |k,v| body[k.to_s] = typecast(v, false) }
@@ -225,20 +238,24 @@ module Itrp
 
     # Send a request to ITRP and wrap the HTTP Response in an Itrp::Response
     # Guaranteed to return a Response, thought it may be +empty?+
-    def _send(request)
-      @logger.debug { "Sending #{request.method} request to #{@domain}:#{@port}#{request.path}" }
+    def _send(request, domain = @domain, port = @port, ssl = @ssl)
+      @logger.debug { "Sending #{request.method} request to #{domain}:#{port}#{request.path}" }
       _response = begin
         http_with_proxy = option(:proxy_host).blank? ? Net::HTTP : Net::HTTP::Proxy(option(:proxy_host), option(:proxy_port), option(:proxy_user), option(:proxy_password))
-        http = http_with_proxy.new(@domain, @port)
+        http = http_with_proxy.new(domain, port)
         http.read_timeout = option(:read_timeout)
-        http.use_ssl = @ssl
+        http.use_ssl = ssl
         http.start{ |_http| _http.request(request) }
       rescue ::Exception => e
-        Struct.new(:body, :message, :code, :header).new(nil, "No Response from Server - #{e.message} for '#{@domain}:#{@port}#{request.path}'", 500, {})
+        Struct.new(:body, :message, :code, :header).new(nil, "No Response from Server - #{e.message} for '#{domain}:#{port}#{request.path}'", 500, {})
       end
       response = Itrp::Response.new(request, _response)
       if response.valid?
         @logger.debug { "Response:\n#{JSON.pretty_generate(response.json)}" }
+      elsif response.raw.body =~ /^\s*<\?xml/i
+        @logger.debug { "XML response:\n#{response.raw.body}" }
+      elsif '303' == response.raw.code.to_s
+        @logger.debug { "Redirect: #{response.raw.header['Location']}" }
       else
         @logger.error { "Request failed: #{response.message}" }
       end
@@ -246,11 +263,11 @@ module Itrp
     end
 
     # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:rate_limit_block+
-    def _send_with_rate_limit_block(request)
-      return _send_without_rate_limit_block(request) unless option(:block_at_rate_limit)
+    def _send_with_rate_limit_block(request, domain = @domain, port = @port, ssl = @ssl)
+      return _send_without_rate_limit_block(request, domain, port, ssl) unless option(:block_at_rate_limit)
       now = Time.now
       begin
-        _response = _send_without_rate_limit_block(request)
+        _response = _send_without_rate_limit_block(request, domain, port, ssl)
         @logger.warn { "Request throttled, trying again in 5 minutes: #{_response.message}" } and sleep(300) if _response.throttled?
       end while _response.throttled? && (Time.now - now) < 3660 # max 1 hour and 1 minute
       _response
@@ -258,12 +275,12 @@ module Itrp
     alias_method_chain :_send, :rate_limit_block
 
     # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:retries+
-    def _send_with_retries(request)
+    def _send_with_retries(request, domain = @domain, port = @port, ssl = @ssl)
       retries = 0
       sleep_time = 2
       total_retry_time = 0
       begin
-        _response = _send_without_retries(request)
+        _response = _send_without_retries(request, domain, port, ssl)
         @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
         total_retry_time += sleep_time
         sleep_time *= 2
@@ -271,6 +288,13 @@ module Itrp
       _response
     end
     alias_method_chain :_send, :retries
+
+    # parse the given URI to [domain, port, ssl, path]
+    def ssl_domain_port_path(uri)
+      uri = URI.parse(uri)
+      ssl = uri.scheme == 'https'
+      [ssl, uri.host, uri.port, uri.path]
+    end
 
   end
 end

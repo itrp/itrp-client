@@ -176,6 +176,41 @@ end
 Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
 
 
+### Note Attachments
+
+To add attachments to a note is rather tricky when done manually as it involves separate file uploads to Amazon S3 and sending
+confirmations back to ITRP.
+
+To make it easy, a special `attachments` parameter can be added when using the `post` or `put` method when the `note` field is available.
+
+```
+response = Itrp::Client.new.put('requests/416621', {
+  status: 'waiting_for_customer',
+  note: 'Please complete the attached forms and reassign the request back to us.',
+  attachments: ['/tmp/forms/Inventory.xls', '/tmp/forms/PersonalData.xls']
+})
+```
+
+If an attachment upload fails, the errors are logged but the `post` or `put` request will still be sent to ITRP without the
+failed attachments. To receive exceptions add `attachments_exception: true` to the data.
+
+```
+begin
+  response = Itrp::Client.new.put('requests/416621', {
+    status: 'waiting_for_customer',
+    note: 'Please complete the attached forms and reassign the request back to us.',
+    attachments: ['/tmp/forms/Inventory.xls', '/tmp/forms/PersonalData.xls']
+  })
+  if response.valid?
+    puts "Request #{response[:id]} updated and attachments added to the note"
+  else
+    puts "Update of request failed: #{response.message}"
+  end
+catch Itrp::UploadFailed => ex
+  puts "Could not upload an attachment: #{ex.message}"
+end
+```
+
 ### Importing CSV files
 
 ITRP also provides an [Import API](http://developer.itrp.com/v1/import/). The ITRP Client can be used to upload files to that API.
