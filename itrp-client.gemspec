@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.email                 = %q{developers@itrp.com}
   spec.description           = %q{Client for accessing the ITRP REST API}
   spec.summary               = %q{Client for accessing the ITRP REST API}
-  spec.homepage              = "https://developer.itrp.com"
+  spec.homepage              = %q{http://github.com/itrp/itrp-client}
   spec.license               = "MIT"
 
   spec.files = Dir.glob("lib/**/*") + [
