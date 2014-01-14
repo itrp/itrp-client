@@ -19,10 +19,21 @@ module Itrp
       report_error("Attachments not allowed for #{path}", raise_exceptions) and return unless storage
 
       # upload each attachment and store the {key, filesize} has in the note_attachments parameter
-      data[:note_attachments] = attachments.map {|attachment| upload_attachment(storage, attachment, raise_exceptions) }.compact.to_json
+      data[attachments_field(path)] = attachments.map {|attachment| upload_attachment(storage, attachment, raise_exceptions) }.compact.to_json
     end
 
     private
+
+    def attachments_field(path)
+      case path
+      when /cis/, /contracts/, /flsas/, /service_instances/, /slas/
+        :remarks_attachments
+      when /service_offerings/
+        :summary_attachments
+      else
+        :note_attachments
+      end
+    end
 
     def report_error(message, raise_exceptions)
       if raise_exceptions

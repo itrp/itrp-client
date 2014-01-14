@@ -39,15 +39,26 @@ describe Itrp::Attachments do
       @attachments.upload_attachments!('/sites', {attachments: ['file1.png']}).should == nil
     end
 
-    it 'should replace :attachments with :note_attachments after upload' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/requests/new?attachment_upload_token=true').to_return(body: {storage_upload: 'conf'}.to_json)
-      expect(@attachments).to receive(:upload_attachment).with('conf', 'file1.png', false).ordered{ 'uploaded file1.png' }
-      expect(@attachments).to receive(:upload_attachment).with('conf', 'file2.zip', false).ordered{ 'uploaded file2.zip' }
-      data = {leave: 'me alone', attachments: %w(file1.png file2.zip)}
-      @attachments.upload_attachments!('/requests', data)
-      data[:attachments].should == nil
-      data[:leave].should == 'me alone'
-      data[:note_attachments].should == ['uploaded file1.png', 'uploaded file2.zip'].to_json
+    [ [:requests,          :note],
+      [:problems,          :note],
+      [:contracts,         :remarks],
+      [:cis,               :remarks],
+      [:flsas,             :remarks],
+      [:slas,              :remarks],
+      [:service_instances, :remarks],
+      [:service_offerings, :summary],
+      [:any_other_model,   :note]].each do |model, attribute|
+
+      it "should replace :attachments with :#{attribute}_attachments after upload at /#{model}" do
+        stub_request(:get, "https://secret:@api.itrp.com/v1/#{model}/new?attachment_upload_token=true").to_return(body: {storage_upload: 'conf'}.to_json)
+        expect(@attachments).to receive(:upload_attachment).with('conf', 'file1.png', false).ordered{ 'uploaded file1.png' }
+        expect(@attachments).to receive(:upload_attachment).with('conf', 'file2.zip', false).ordered{ 'uploaded file2.zip' }
+        data = {leave: 'me alone', attachments: %w(file1.png file2.zip)}
+        @attachments.upload_attachments!("/#{model}", data)
+        data[:attachments].should == nil
+        data[:leave].should == 'me alone'
+        data[:"#{attribute}_attachments"].should == ['uploaded file1.png', 'uploaded file2.zip'].to_json
+      end
     end
 
     it 'should set raise_exception flag to true when :attachments_exception is set' do

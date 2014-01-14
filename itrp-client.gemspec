@@ -15,13 +15,13 @@ Gem::Specification.new do |spec|
   spec.homepage              = %q{http://github.com/itrp/itrp-client}
   spec.license               = "MIT"
 
-  spec.files = Dir.glob("lib/**/*") + [
-      "LICENSE.txt",
-      "README.md",
-      "Gemfile",
-      "Gemfile.lock",
-      "itrp-client.gemspec"
-  ]
+  spec.files = Dir.glob("lib/**/*") + %w(
+    LICENSE.txt
+    README.md
+    Gemfile
+    Gemfile.lock
+    itrp-client.gemspec
+  )
   spec.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   spec.test_files    = `git ls-files -- {test,spec}/*`.split("\n")
   spec.require_paths = ["lib"]
