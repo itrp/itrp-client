@@ -22,8 +22,13 @@ module Itrp
     # If the response is not +valid?+ it is a Hash with 'message' and optionally 'errors'
     def json
       return @json if defined?(@json)
-      # no body, no json
-      data = {message: @response.message.blank? ? 'empty body' : @response.message.strip} if @response.body.blank?
+      # no content, no JSON
+      if @response.code.to_s == '204'
+        data = {}
+      elsif @response.body.blank?
+        # no body, no json
+        data = {message: @response.message.blank? ? 'empty body' : @response.message.strip}
+      end
       begin
         data ||= JSON.parse(@response.body)
       rescue ::Exception => e

@@ -339,6 +339,14 @@ describe Itrp::Client do
       response[:token].should == '68ef5ef0f64c0'
     end
 
+    it 'should indicate when nothing is exported' do
+      stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people', from: '2012-03-30T23:00:00+00:00'}).to_return(status: 204)
+      expect_log("No changed records for 'people' since 2012-03-30T23:00:00+00:00.")
+
+      response = @client.export('people', DateTime.new(2012,03,30,23,00,00))
+      response[:token].should == nil
+    end
+
     it 'should export since a certain time' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people', from: '2012-03-30T23:00:00+00:00'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
       expect_log("Export for 'people' successfully queued with token '68ef5ef0f64c0'.")

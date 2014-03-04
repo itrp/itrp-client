@@ -146,7 +146,13 @@ module Itrp
       data = {type: [types].flatten.join(',')}
       data[:from] = from unless from.blank?
       response = post('/export', data)
-      @logger.info { "Export for '#{data[:type]}' successfully queued with token '#{response[:token]}'." } if response.valid?
+      if response.valid?
+        if response.raw.code.to_s == '204'
+          @logger.info { "No changed records for '#{data[:type]}' since #{data[:from]}." }
+          return response
+        end
+        @logger.info { "Export for '#{data[:type]}' successfully queued with token '#{response[:token]}'." }
+      end
 
       if block_until_completed
         raise ::Itrp::UploadFailed.new("Failed to queue '#{data[:type]}' export. #{response.message}") unless response.valid?
