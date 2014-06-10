@@ -50,7 +50,7 @@ module Itrp
         # attachment is already a file or we need to open the file from disk
         unless attachment.respond_to?(:path) && attachment.respond_to?(:read)
           raise "file does not exist: #{attachment}" unless File.exists?(attachment)
-          attachment = File.open(attachment, 'r')
+          attachment = File.open(attachment, 'rb')
         end
 
         # there are two different upload methods: AWS S3 and ITRP local storage

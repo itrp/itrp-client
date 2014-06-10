@@ -114,7 +114,7 @@ module Itrp
     # @raise Itrp::UploadFailed in case the file could was not accepted by ITRP and +block_until_completed+ is +true+
     # @raise Itrp::Exception in case the import progress could not be monitored
     def import(csv, type, block_until_completed = false)
-      csv = File.open(csv, 'r') unless csv.respond_to?(:path) && csv.respond_to?(:read)
+      csv = File.open(csv, 'rb') unless csv.respond_to?(:path) && csv.respond_to?(:read)
       data, headers = Itrp::Multipart::Post.prepare_query(type: type, file: csv)
       request = Net::HTTP::Post.new(expand_path('/import'), expand_header(headers))
       request.body = data
