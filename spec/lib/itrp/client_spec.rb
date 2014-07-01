@@ -152,6 +152,13 @@ describe Itrp::Client do
         end
       end
 
+      it 'should not cast arrays in post and put calls' do
+        client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+        stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {user_ids: [1, 2, 3]}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
+        client.post('people', {user_ids: [1, 2, 3]}, {'X-ITRP-Custom' => 'custom'})
+        stub.should have_been_requested
+      end
+
       it 'should handle fancy filter operations' do
         now = DateTime.now
         stub = stub_request(:get, "https://secret:@api.itrp.com/v1/people?created_at=>#{now.new_offset(0).iso8601}&id!=15").to_return(body: {name: 'my name'}.to_json)

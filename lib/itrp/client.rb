@@ -237,7 +237,8 @@ module Itrp
         when :DateTime    then value.new_offset(0).iso8601
         when :Date        then value.strftime("%Y-%m-%d")
         when :Time        then value.strftime("%H:%M")
-        when :Array       then value.map{ |v| typecast(v, escape) }.join(',')
+        # do not convert arrays in put/post requests as squashing arrays is only used in filtering
+        when :Array       then escape ? value.map{ |v| typecast(v, escape) }.join(',') : value
         else value.to_s
       end
     end
