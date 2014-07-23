@@ -56,6 +56,10 @@ Each time an ITRP Client is instantiated it is possible to override the [global 
 client = Itrp::Client.new(account: 'trusted-sandbox', source: 'my special integration')
 ```
 
+### Proxy
+
+The proxy settings are limited to basic authentication only. In case ISA-NTLM authentication is required, make sure to setup a local proxy configured to forward the requests. And example local proxy host for Windows is [Fiddle](http://www.telerik.com/fiddler).
+
 ## ITRP Client
 
 Minimal example:

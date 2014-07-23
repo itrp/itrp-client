@@ -159,6 +159,13 @@ describe Itrp::Client do
         stub.should have_been_requested
       end
 
+      it 'should not cast hashes in post and put calls' do
+        client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+        stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/55').with(body: '{"contacts_attributes":{"0":{"protocol":"email","label":"work","uri":"work@example.com"}}}', headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
+        client.put('people/55', {contacts_attributes: {0 => {protocol: :email, label: :work, uri: 'work@example.com'}}}, {'X-ITRP-Custom' => 'custom'})
+        stub.should have_been_requested
+      end
+
       it 'should handle fancy filter operations' do
         now = DateTime.now
         stub = stub_request(:get, "https://secret:@api.itrp.com/v1/people?created_at=>#{now.new_offset(0).iso8601}&id!=15").to_return(body: {name: 'my name'}.to_json)
