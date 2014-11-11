@@ -22,6 +22,8 @@ module Itrp
     has :proxy_port, classes: Fixnum, default: 8080
     has :proxy_user, classes: String
     has :proxy_password, classes: String
+
+    has :ca_file, classes: String, default: '../ca-bundle.crt'
   end
 
   def self.logger

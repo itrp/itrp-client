@@ -47,6 +47,7 @@ All options available:
 * _proxy_port_:     Port of the proxy, defaults to 8080
 * _proxy_user_:     Proxy user
 * _proxy_password_: Proxy password
+* _ca_file_:        Certificate file (defaults to the provided ca-bundle.crt file from Mozilla)
 
 ### Override
 
