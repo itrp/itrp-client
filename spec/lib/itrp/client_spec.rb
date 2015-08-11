@@ -96,6 +96,13 @@ describe Itrp::Client do
       expect(stub).to have_been_requested
     end
 
+    it 'should accept headers in the each call' do
+      stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').with(headers: {'X-ITRP-Secret' => 'special'}).to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
+      nr_of_requests = @client.each('requests', {fields: 'subject'}, {'X-ITRP-Secret' => 'special'}) do |request|
+        expect(request[:subject]).to eq("Subject #{request[:id]}")
+      end
+      expect(stub).to have_been_requested
+    end
   end
 
   context 'each' do

@@ -63,6 +63,7 @@ module Itrp
         raise ::Itrp::Exception.new("Missing required configuration option #{required_option}") if option(required_option).blank?
       end
       @ssl, @domain, @port = ssl_domain_port_path(option(:host))
+      @ssl_verify_none = options[:ssl_verify_none]
       @logger = @options[:logger]
     end
 
@@ -74,13 +75,13 @@ module Itrp
     # Yield all retrieved resources one-by-one for the given (paged) API query.
     # Raises an ::Itrp::Exception with the response retrieved from ITRP is invalid
     # Returns total nr of resources yielded (for logging)
-    def each(path, params = {}, &block)
+    def each(path, params = {}, header = {}, &block)
       # retrieve the resources using the max page size (least nr of API calls)
       next_path = expand_path(path, {per_page: MAX_PAGE_SIZE, page: 1}.merge(params))
       size = 0
       while next_path
         # retrieve the records (with retry and optionally wait for rate-limit)
-        response = get(next_path)
+        response = get(next_path, {}, header)
         # raise exception in case the response is invalid
         raise ::Itrp::Exception.new(response.message) unless response.valid?
         # yield the resources
@@ -254,6 +255,7 @@ module Itrp
         http = http_with_proxy.new(domain, port)
         http.read_timeout = option(:read_timeout)
         http.use_ssl = ssl
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE if @ssl_verify_none
         http.start{ |_http| _http.request(request) }
       rescue ::Exception => e
         Struct.new(:body, :message, :code, :header).new(nil, "No Response from Server - #{e.message} for '#{domain}:#{port}#{request.path}'", 500, {})
