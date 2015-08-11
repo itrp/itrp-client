@@ -33,17 +33,17 @@ describe Itrp::Response do
   end
 
   it 'should contain the request' do
-    @response_hash.request.class.name.should == 'Net::HTTP::Get'
-    @response_hash.request.path.should == '/v1/me'
+    expect(@response_hash.request.class.name).to eq('Net::HTTP::Get')
+    expect(@response_hash.request.path).to eq('/v1/me')
   end
 
   it 'should contain the full request' do
-    @response_hash.response.class.name.should == 'Net::HTTPOK'
-    @response_hash.response.should respond_to(:body)
+    expect(@response_hash.response.class.name).to eq('Net::HTTPOK')
+    expect(@response_hash.response).to respond_to(:body)
   end
 
   it 'should provide easy access to the body' do
-    @response_hash.body.should include(%("primary_email":"john@example.com"))
+    expect(@response_hash.body).to include(%("primary_email":"john@example.com"))
   end
 
   context 'json/message' do
@@ -56,17 +56,17 @@ describe Itrp::Response do
     end
 
     it 'should provide indifferent access for single records' do
-      @response_hash.json['organization']['name'].should == 'ITRP Institute'
-      @response_hash.json[:organization][:name].should == 'ITRP Institute'
-      @response_hash.json[:organization]['name'].should == 'ITRP Institute'
-      @response_hash.json['organization'][:name].should == 'ITRP Institute'
+      expect(@response_hash.json['organization']['name']).to eq('ITRP Institute')
+      expect(@response_hash.json[:organization][:name]).to eq('ITRP Institute')
+      expect(@response_hash.json[:organization]['name']).to eq('ITRP Institute')
+      expect(@response_hash.json['organization'][:name]).to eq('ITRP Institute')
     end
 
     it 'should provide indifferent access for lists' do
-      @response_array.json.first['site']['name'].should == 'IT Training Facility'
-      @response_array.json.first[:site][:name].should == 'IT Training Facility'
-      @response_array.json.last[:site]['name'].should == 'IT Training Facility'
-      @response_array.json.last['site'][:name].should == 'IT Training Facility'
+      expect(@response_array.json.first['site']['name']).to eq('IT Training Facility')
+      expect(@response_array.json.first[:site][:name]).to eq('IT Training Facility')
+      expect(@response_array.json.last[:site]['name']).to eq('IT Training Facility')
+      expect(@response_array.json.last['site'][:name]).to eq('IT Training Facility')
     end
 
     it 'should add a message if the body is empty' do
@@ -74,9 +74,9 @@ describe Itrp::Response do
       response = @client.get('organizations')
 
       message = '429: empty body'
-      response.json[:message].should == message
-      response.json['message'].should == message
-      response.message.should == message
+      expect(response.json[:message]).to eq(message)
+      expect(response.json['message']).to eq(message)
+      expect(response.message).to eq(message)
     end
 
     it 'should add a message if the HTTP response is not OK' do
@@ -84,27 +84,27 @@ describe Itrp::Response do
       response = @client.get('organizations')
 
       message = '429: Too Many Requests'
-      response.json[:message].should == message
-      response.json['message'].should == message
-      response.message.should == message
+      expect(response.json[:message]).to eq(message)
+      expect(response.json['message']).to eq(message)
+      expect(response.message).to eq(message)
     end
 
     it 'should add a message if the JSON body cannot be parsed' do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(body: '==$$!invalid')
       response = @client.get('organizations')
 
-      message = "Invalid JSON - 746: unexpected token at '==$$!invalid' for:\n#{response.body}"
-      response.json[:message].should == message
-      response.json['message'].should == message
-      response.message.should == message
+      message = "Invalid JSON - 757: unexpected token at '==$$!invalid' for:\n#{response.body}"
+      expect(response.json[:message]).to eq(message)
+      expect(response.json['message']).to eq(message)
+      expect(response.message).to eq(message)
     end
 
     it 'should have a blank message when single record is succesfully retrieved' do
-      @response_hash.message.should == nil
+      expect(@response_hash.message).to be_nil
     end
 
     it 'should have a blank message when single record is succesfully retrieved' do
-      @response_array.message.should == nil
+      expect(@response_array.message).to be_nil
     end
 
   end
@@ -113,80 +113,80 @@ describe Itrp::Response do
     stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
     response = @client.get('organizations')
 
-    response.empty?.should == true
-    @person_hash.empty?.should == false
-    @people_array.empty?.should == false
+    expect(response.empty?).to be_truthy
+    expect(@person_hash.empty?).to be_falsey
+    expect(@people_array.empty?).to be_falsey
   end
 
   context 'valid' do
     it 'should be valid when the message is nil' do
       expect(@response_hash).to receive(:message){ nil }
-      @response_hash.valid?.should == true
+      expect(@response_hash.valid?).to be_truthy
     end
 
     it 'should not be valid when the message is not nil' do
       expect(@response_array).to receive(:message){ 'invalid' }
-      @response_array.valid?.should == false
+      expect(@response_array.valid?).to be_falsey
     end
   end
 
   context '[] access' do
     context 'single records' do
       it 'should delegate [] to the json' do
-        @response_hash[:name].should == 'John'
+        expect(@response_hash[:name]).to eq('John')
       end
 
       it 'should allow multiple keys' do
-        @response_hash[:organization, 'name'].should == 'ITRP Institute'
+        expect(@response_hash[:organization, 'name']).to eq('ITRP Institute')
       end
 
       it 'should allow nils when using multiple keys' do
-        @response_hash[:organization, :missing, 'name'].should == nil
+        expect(@response_hash[:organization, :missing, 'name']).to be_nil
       end
     end
 
     context 'list of records' do
       it 'should delegate [] to the json of each record' do
-        @response_array['name'].should == ['John', 'Lucas', 'Sheryl']
+        expect(@response_array['name']).to eq(['John', 'Lucas', 'Sheryl'])
       end
 
       it 'should allow multiple keys' do
-        @response_array[:organization, 'name'].should == ['ITRP Institute', 'ITRP Institute', 'ITRP Institute']
+        expect(@response_array[:organization, 'name']).to eq(['ITRP Institute', 'ITRP Institute', 'ITRP Institute'])
       end
 
       it 'should allow nils when using multiple keys' do
-        @response_array[:organization, :office, 'name'].should == [nil, 'The Office', nil]
+        expect(@response_array[:organization, :office, 'name']).to eq([nil, 'The Office', nil])
       end
     end
   end
 
   context 'size' do
     it 'should return 1 for single records' do
-      @response_hash.size.should == 1
+      expect(@response_hash.size).to eq(1)
     end
 
     it 'should return the array size for list records' do
-      @response_array.size.should == 3
+      expect(@response_array.size).to eq(3)
     end
 
     it 'should return nil if an error message is present' do
       expect(@response_hash).to receive(:message){ 'error message' }
-      @response_hash.size.should == 0
+      expect(@response_hash.size).to eq(0)
     end
   end
 
   context 'count' do
     it 'should return 1 for single records' do
-      @response_hash.count.should == 1
+      expect(@response_hash.count).to eq(1)
     end
 
     it 'should return the array size for list records' do
-      @response_array.count.should == 3
+      expect(@response_array.count).to eq(3)
     end
 
     it 'should return nil if an error message is present' do
       expect(@response_hash).to receive(:message){ 'error message' }
-      @response_hash.count.should == 0
+      expect(@response_hash.count).to eq(0)
     end
   end
 
@@ -203,19 +203,19 @@ describe Itrp::Response do
     end
 
     it "should retrieve per_page from the 'X-Pagination-Per-Page' header" do
-      @response_array.per_page.should == 3
+      expect(@response_array.per_page).to eq(3)
     end
 
     it "should retrieve current_page from the 'X-Pagination-Current-Page' header" do
-      @response_array.current_page.should == 1
+      expect(@response_array.current_page).to eq(1)
     end
 
     it "should retrieve total_pages from the 'X-Pagination-Total-Pages' header" do
-      @response_array.total_pages.should == 2
+      expect(@response_array.total_pages).to eq(2)
     end
 
     it "should retrieve total_entries from the 'X-Pagination-Total-Entries' header" do
-      @response_array.total_entries.should == 5
+      expect(@response_array.total_entries).to eq(5)
     end
 
     {first: 'https://api.itrp.com/v1/people?page=1&per_page=3',
@@ -223,7 +223,7 @@ describe Itrp::Response do
      last: 'https://api.itrp.com/v1/people?page=2&per_page=3'}.each do |relation, link|
 
       it "should define pagination link for :#{relation}" do
-        @response_array.pagination_link(relation).should == link
+        expect(@response_array.pagination_link(relation)).to eq(link)
       end
     end
 
@@ -232,39 +232,39 @@ describe Itrp::Response do
      last: '/v1/people?page=2&per_page=3'}.each do |relation, link|
 
       it "should define pagination relative link for :#{relation}" do
-        @response_array.pagination_relative_link(relation).should == link
+        expect(@response_array.pagination_relative_link(relation)).to eq(link)
       end
     end
   end
 
   context 'throttled?' do
     it 'should not be trhottled by default' do
-      @response_hash.throttled?.should == false
-      @response_array.throttled?.should == false
+      expect(@response_hash.throttled?).to be_falsey
+      expect(@response_array.throttled?).to be_falsey
     end
 
     it 'should check the return code' do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
       response = @client.get('organizations')
-      response.throttled?.should == true
+      expect(response.throttled?).to be_truthy
     end
 
     it 'should check the return message' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 500, body: {message: 'Too Many Requests'} )
+      stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 500, body: {message: 'Too Many Requests'}.to_json )
       response = @client.get('organizations')
-      response.throttled?.should == true
+      expect(response.throttled?).to be_truthy
     end
   end
 
   context 'to_s' do
     it 'should return the JSON as a string' do
-      @response_hash.to_s.should == JSON.parse(@person_hash.to_json).to_s
+      expect(@response_hash.to_s).to eq(JSON.parse(@person_hash.to_json).to_s)
     end
 
     it 'should return the message in case the response is not valid' do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/organizations').to_return(status: 429, body: nil)
       response = @client.get('organizations')
-      response.to_s.should == '429: empty body'
+      expect(response.to_s).to eq('429: empty body')
     end
   end
 

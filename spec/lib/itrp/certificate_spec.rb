@@ -10,7 +10,7 @@ describe 'ca-bundle.crt' do
     # no exception concerning the certificate
     expect { result[:response] = client.get('me') }.not_to raise_error
     response = result[:response]
-    expect(response.valid?).to be_false
+    expect(response.valid?).to be_falsey
 
     # expecting 401 error
     expect(response.message).to eq('401: Access credentials required')

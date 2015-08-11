@@ -11,23 +11,23 @@ describe Itrp::Client do
     end
 
     it 'should define the MAX_PAGE_SIZE' do
-      Itrp::Client::MAX_PAGE_SIZE.should == 100
+      expect(Itrp::Client::MAX_PAGE_SIZE).to eq(100)
     end
 
     it 'should use the Itrp configuration' do
       client = Itrp::Client.new
-      client.option(:host).should == 'https://api.itrp.com' # default value
-      client.option(:api_token).should == 'secret'          # value set using Itrp.config
-      client.option(:max_retry_time).should == 120          # value overridden in Itrp.config
+      expect(client.option(:host)).to eq('https://api.itrp.com') # default value
+      expect(client.option(:api_token)).to eq('secret')          # value set using Itrp.config
+      expect(client.option(:max_retry_time)).to eq(120)          # value overridden in Itrp.config
     end
 
     it 'should override the Itrp configuration' do
       client = Itrp::Client.new(host: 'https://demo.itrp.com', api_token: 'unknown', block_at_rate_limit: true)
-      client.option(:read_timeout).should == 25              # default value
-      client.option(:host).should == 'https://demo.itrp.com' # default value overridden in Client.new
-      client.option(:api_token).should == 'unknown'          # value set using Itrp.config and overridden in Client.new
-      client.option(:max_retry_time).should == 120           # value overridden in Itrp.config
-      client.option(:block_at_rate_limit).should == true     # value overridden in Client.new
+      expect(client.option(:read_timeout)).to eq(25)              # default value
+      expect(client.option(:host)).to eq('https://demo.itrp.com') # default value overridden in Client.new
+      expect(client.option(:api_token)).to eq('unknown')          # value set using Itrp.config and overridden in Client.new
+      expect(client.option(:max_retry_time)).to eq(120)           # value overridden in Itrp.config
+      expect(client.option(:block_at_rate_limit)).to eq(true)     # value overridden in Client.new
     end
 
     [:host, :api_version, :api_token].each do |required_option|
@@ -43,9 +43,9 @@ describe Itrp::Client do
     ].each do |host, ssl, domain, port|
       it 'should parse ssl, host and port' do
         client = Itrp::Client.new(host: host)
-        client.instance_variable_get(:@ssl).should == ssl
-        client.instance_variable_get(:@domain).should == domain
-        client.instance_variable_get(:@port).should == port
+        expect(client.instance_variable_get(:@ssl)).to eq(ssl)
+        expect(client.instance_variable_get(:@domain)).to eq(domain)
+        expect(client.instance_variable_get(:@port)).to eq(port)
       end
     end
   end
@@ -55,8 +55,8 @@ describe Itrp::Client do
     http.use_ssl = true
 
     on_disk = `ls #{http.ca_file}`
-    on_disk.should_not =~ /cannot access/
-    on_disk.should =~ /\/ca-bundle.crt$/
+    expect(on_disk).not_to match(/cannot access/)
+    expect(on_disk).to match(/\/ca-bundle.crt$/)
   end
 
   describe 'headers' do
@@ -67,33 +67,33 @@ describe Itrp::Client do
     it 'should set the content type header' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'Content-Type' => 'application/json'}).to_return(body: {name: 'my name'}.to_json)
       response = @client.get('me')
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
 
     it 'should add the X-ITRP-Account header' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, account: 'test')
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'X-ITRP-Account' => 'test'}).to_return(body: {name: 'my name'}.to_json)
       response = client.get('me')
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
 
     it 'should add the X-ITRP-Source header' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, source: 'myapp')
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'X-ITRP-Source' => 'myapp'}).to_return(body: {name: 'my name'}.to_json)
       response = client.get('me')
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
 
     it 'should be able to override headers' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'Content-Type' => 'application/x-www-form-urlencoded'}).to_return(body: {name: 'my name'}.to_json)
       response = @client.get('me', {}, {'Content-Type' => 'application/x-www-form-urlencoded'})
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
 
     it 'should set the other headers' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/me').with(headers: {'X-ITRP-Other' => 'value'}).to_return(body: {name: 'my name'}.to_json)
       response = @client.get('me', {}, {'X-ITRP-Other' => 'value'})
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
 
   end
@@ -106,19 +106,19 @@ describe Itrp::Client do
     it 'should yield each result' do
       stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
       nr_of_requests = @client.each('requests', {fields: 'subject'}) do |request|
-        request[:subject].should == "Subject #{request[:id]}"
+        expect(request[:subject]).to eq("Subject #{request[:id]}")
       end
-      nr_of_requests.should == 3
+      expect(nr_of_requests).to eq(3)
     end
 
     it 'should retrieve multiple pages' do
       stub_page1 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=1&per_page=2').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="next",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
       stub_page2 = stub_request(:get, 'https://secret:@api.itrp.com/v1/requests?page=2&per_page=2').to_return(body: [{id: 3, subject: 'Subject 3'}].to_json, headers: {'Link' => '<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="first",<https://api.itrp.com/v1/requests?page=1&per_page=2>; rel="prev",<https://api.itrp.com/v1/requests?page=2&per_page=2>; rel="last"'})
       nr_of_requests = @client.each('requests', {per_page: 2}) do |request|
-        request[:subject].should == "Subject #{request[:id]}"
+        expect(request[:subject]).to eq("Subject #{request[:id]}")
       end
-      nr_of_requests.should == 3
-      stub_page2.should have_been_requested
+      expect(nr_of_requests).to eq(3)
+      expect(stub_page2).to have_been_requested
     end
   end
 
@@ -130,7 +130,7 @@ describe Itrp::Client do
     it 'should return a response' do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/me').to_return(body: {name: 'my name'}.to_json)
       response = @client.get('me')
-      response[:name].should == 'my name'
+      expect(response[:name]).to eq('my name')
     end
 
     describe 'parameters' do
@@ -148,7 +148,7 @@ describe Itrp::Client do
         it "should cast #{param_value.class.name}: '#{param_value}' to '#{url_value}'" do
           stub = stub_request(:get, "https://secret:@api.itrp.com/v1/me?value=#{url_value}").to_return(body: {name: 'my name'}.to_json)
           response = @client.get('me', {value: param_value})
-          stub.should have_been_requested
+          expect(stub).to have_been_requested
         end
       end
 
@@ -156,28 +156,28 @@ describe Itrp::Client do
         client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
         stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {user_ids: [1, 2, 3]}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
         client.post('people', {user_ids: [1, 2, 3]}, {'X-ITRP-Custom' => 'custom'})
-        stub.should have_been_requested
+        expect(stub).to have_been_requested
       end
 
       it 'should not cast hashes in post and put calls' do
         client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
         stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/55').with(body: '{"contacts_attributes":{"0":{"protocol":"email","label":"work","uri":"work@example.com"}}}', headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
         client.put('people/55', {contacts_attributes: {0 => {protocol: :email, label: :work, uri: 'work@example.com'}}}, {'X-ITRP-Custom' => 'custom'})
-        stub.should have_been_requested
+        expect(stub).to have_been_requested
       end
 
       it 'should handle fancy filter operations' do
         now = DateTime.now
         stub = stub_request(:get, "https://secret:@api.itrp.com/v1/people?created_at=>#{now.new_offset(0).iso8601}&id!=15").to_return(body: {name: 'my name'}.to_json)
         response = @client.get('people', {'created_at=>' => now, 'id!=' => 15})
-        stub.should have_been_requested
+        expect(stub).to have_been_requested
       end
 
       it 'should append parameters' do
         now = DateTime.now
         stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/people?id!=15&primary_email=me@example.com').to_return(body: {name: 'my name'}.to_json)
         response = @client.get('people?id!=15', {primary_email: 'me@example.com'})
-        stub.should have_been_requested
+        expect(stub).to have_been_requested
       end
     end
   end
@@ -187,7 +187,7 @@ describe Itrp::Client do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/1').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 1}.to_json)
       response = client.put('people/1', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
   end
 
@@ -196,7 +196,7 @@ describe Itrp::Client do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       stub = stub_request(:post, 'https://secret:@api.itrp.com/v1/people').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
       response = client.post('people', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
-      stub.should have_been_requested
+      expect(stub).to have_been_requested
     end
   end
 
@@ -211,8 +211,8 @@ describe Itrp::Client do
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug)
       expect_log("XML response:\n#{xml}", :debug)
       response = @client.get('me')
-      response.valid?.should == false
-      response.raw.body.should == xml
+      expect(response.valid?).to be_falsey
+      expect(response.raw.body).to eq(xml)
     end
 
     it 'should not log an error for redirects' do
@@ -220,8 +220,8 @@ describe Itrp::Client do
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug)
       expect_log('Redirect: http://redirect.example.com/to/here', :debug)
       response = @client.get('me')
-      response.valid?.should == false
-      response.raw.body.should == nil
+      expect(response.valid?).to be_falsey
+      expect(response.raw.body).to be_nil
     end
 
     it "should not parse attachments for get requests" do
@@ -229,8 +229,8 @@ describe Itrp::Client do
       stub_request(:get, 'https://secret:@api.itrp.com/v1/requests/777?attachments=/tmp/first.png,/tmp/second.zip&note=note').to_return(body: {id: 777, upload_called: false}.to_json)
 
       response = @client.get('/requests/777', {note: 'note', attachments: ['/tmp/first.png', '/tmp/second.zip'] })
-      response.valid?.should == true
-      response[:upload_called].should == false
+      expect(response.valid?).to be_truthy
+      expect(response[:upload_called]).to be_falsey
     end
 
     [:post, :put].each do |method|
@@ -246,8 +246,8 @@ describe Itrp::Client do
         stub_request(method, 'https://secret:@api.itrp.com/v1/requests/777').with(body: {note: 'note', note_attachments: 'processed' }).to_return(body: {id: 777, upload_called: true}.to_json)
 
         response = @client.send(method, '/requests/777', {note: 'note', attachments: ['/tmp/first.png', '/tmp/second.zip'] })
-        response.valid?.should == true
-        response[:upload_called].should == true
+        expect(response.valid?).to be_truthy
+        expect(response[:upload_called]).to be_truthy
       end
     end
 
@@ -272,13 +272,13 @@ describe Itrp::Client do
       expect_log("Import file '#{@fixture_dir}/people.csv' successfully uploaded with token '68ef5ef0f64c0'.")
 
       response = @client.import(File.new("#{@fixture_dir}/people.csv"), 'people')
-      response[:token].should == '68ef5ef0f64c0'
+      expect(response[:token]).to eq('68ef5ef0f64c0')
     end
 
     it 'should import a CSV file by filename' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
       response = @client.import("#{@fixture_dir}/people.csv", 'people')
-      response[:token].should == '68ef5ef0f64c0'
+      expect(response[:token]).to eq('68ef5ef0f64c0')
     end
 
     it 'should wait for the import to complete' do
@@ -299,9 +299,9 @@ describe Itrp::Client do
       expect_log("Response:\n{\n  \"state\": \"done\",\n  \"results\": {\n    \"errors\": 0,\n    \"updated\": 1,\n    \"created\": 1,\n    \"failures\": 0,\n    \"unchanged\": 0,\n    \"deleted\": 0\n  }\n}", :debug)
 
       response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
-      response[:state].should == 'done'
-      response[:results][:updated].should == 1
-      progress_stub.should have_been_requested.times(3)
+      expect(response[:state]).to eq('done')
+      expect(response[:results][:updated]).to eq(1)
+      expect(progress_stub).to have_been_requested.times(3)
     end
 
     it 'should wait for the import to fail' do
@@ -309,7 +309,7 @@ describe Itrp::Client do
       progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response, @import_failed_response)
 
       expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. Invalid byte sequence in UTF-8 on line 2")
-      progress_stub.should have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(3)
     end
 
     it 'should not continue when there is an error connecting to ITRP' do
@@ -317,14 +317,14 @@ describe Itrp::Client do
       progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/import/68ef5ef0f64c0').to_return(@import_queued_response, @import_processing_response).then.to_raise(StandardError.new('network error'))
 
       expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. 500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'")
-      progress_stub.should have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(3)
     end
 
     it 'should return an invalid response in case waiting for progress is false' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/import').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
       response = @client.import("#{@fixture_dir}/people.csv", 'people', false)
-      response.valid?.should == false
-      response.message.should == 'oops!'
+      expect(response.valid?).to be_falsey
+      expect(response.message).to eq('oops!')
     end
 
     it 'should raise an UploadFailed exception in case waiting for progress is true' do
@@ -350,7 +350,7 @@ describe Itrp::Client do
       expect_log("Export for 'people,people_contact_details' successfully queued with token '68ef5ef0f64c0'.")
 
       response = @client.export(['people', 'people_contact_details'])
-      response[:token].should == '68ef5ef0f64c0'
+      expect(response[:token]).to eq('68ef5ef0f64c0')
     end
 
     it 'should indicate when nothing is exported' do
@@ -358,7 +358,7 @@ describe Itrp::Client do
       expect_log("No changed records for 'people' since 2012-03-30T23:00:00+00:00.")
 
       response = @client.export('people', DateTime.new(2012,03,30,23,00,00))
-      response[:token].should == nil
+      expect(response[:token]).to be_nil
     end
 
     it 'should export since a certain time' do
@@ -366,7 +366,7 @@ describe Itrp::Client do
       expect_log("Export for 'people' successfully queued with token '68ef5ef0f64c0'.")
 
       response = @client.export('people', DateTime.new(2012,03,30,23,00,00))
-      response[:token].should == '68ef5ef0f64c0'
+      expect(response[:token]).to eq('68ef5ef0f64c0')
     end
 
     it 'should wait for the export to complete' do
@@ -387,9 +387,9 @@ describe Itrp::Client do
       expect_log(%(Response:\n{\n  "state": "done",\n  "url": "https://download.example.com/export.zip?AWSAccessKeyId=12345"\n}), :debug)
 
       response = @client.export('people', nil, true)
-      response[:state].should == 'done'
-      response[:url].should == 'https://download.example.com/export.zip?AWSAccessKeyId=12345'
-      progress_stub.should have_been_requested.times(3)
+      expect(response[:state]).to eq('done')
+      expect(response[:url]).to eq('https://download.example.com/export.zip?AWSAccessKeyId=12345')
+      expect(progress_stub).to have_been_requested.times(3)
     end
 
     it 'should not continue when there is an error connecting to ITRP' do
@@ -397,14 +397,14 @@ describe Itrp::Client do
       progress_stub = stub_request(:get, 'https://secret:@api.itrp.com/v1/export/68ef5ef0f64c0').to_return(@export_queued_response, @export_processing_response).then.to_raise(StandardError.new('network error'))
 
       expect{ @client.export('people', nil, true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for 'people' export. 500: No Response from Server - network error for 'api.itrp.com:443/v1/export/68ef5ef0f64c0'")
-      progress_stub.should have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(3)
     end
 
     it 'should return an invalid response in case waiting for progress is false' do
       stub_request(:post, 'https://secret:@api.itrp.com/v1/export').with(body: {type: 'people'}).to_return(body: {message: 'oops!'}.to_json)
       response = @client.export('people')
-      response.valid?.should == false
-      response.message.should == 'oops!'
+      expect(response.valid?).to be_falsey
+      expect(response.message).to eq('oops!')
     end
 
     it 'should raise an UploadFailed exception in case waiting for progress is true' do
@@ -422,9 +422,9 @@ describe Itrp::Client do
 
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       response = client.get('me')
-      stub.should have_been_requested.times(1)
-      response.valid?.should == false
-      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/me'"
+      expect(stub).to have_been_requested.times(1)
+      expect(response.valid?).to be_falsey
+      expect(response.message).to eq("500: No Response from Server - network error for 'api.itrp.com:443/v1/me'")
     end
 
     it 'should not retry 4 times when max_retry_time = 16' do
@@ -437,9 +437,9 @@ describe Itrp::Client do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: 16)
       allow(client).to receive(:sleep)
       response = client.get('me')
-      stub.should have_been_requested.times(4)
-      response.valid?.should == false
-      response.message.should == "500: No Response from Server - network error for 'api.itrp.com:443/v1/me'"
+      expect(stub).to have_been_requested.times(4)
+      expect(response.valid?).to be_falsey
+      expect(response.message).to eq("500: No Response from Server - network error for 'api.itrp.com:443/v1/me'")
     end
 
     it 'should return the response after retry succeeds' do
@@ -452,9 +452,9 @@ describe Itrp::Client do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: 16)
       allow(client).to receive(:sleep)
       response = client.get('me')
-      stub.should have_been_requested.times(2)
-      response.valid?.should == true
-      response[:name].should == 'my name'
+      expect(stub).to have_been_requested.times(2)
+      expect(response.valid?).to be_truthy
+      expect(response[:name]).to eq('my name')
     end
   end
 
@@ -466,9 +466,9 @@ describe Itrp::Client do
 
       client = Itrp::Client.new(api_token: 'secret', block_at_rate_limit: false)
       response = client.get('me')
-      stub.should have_been_requested.times(1)
-      response.valid?.should == false
-      response.message.should == '429: Too Many Requests'
+      expect(stub).to have_been_requested.times(1)
+      expect(response.valid?).to be_falsey
+      expect(response.message).to eq('429: Too Many Requests')
     end
 
     it 'should block on rate limit when block_at_rate_limit is true' do
@@ -481,9 +481,9 @@ describe Itrp::Client do
       client = Itrp::Client.new(api_token: 'secret', block_at_rate_limit: true)
       allow(client).to receive(:sleep)
       response = client.get('me')
-      stub.should have_been_requested.times(2)
-      response.valid?.should == true
-      response[:name].should == 'my name'
+      expect(stub).to have_been_requested.times(2)
+      expect(response.valid?).to be_truthy
+      expect(response[:name]).to eq('my name')
     end
   end
 

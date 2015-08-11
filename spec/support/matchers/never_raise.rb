@@ -14,6 +14,10 @@
 RSpec::Matchers.define :never_raise do |exception_class|
   global_result = nil
 
+  def supports_block_expectations?
+    true # or some logic
+  end
+
   match do |block|
     begin
       block.call
@@ -36,7 +40,7 @@ RSpec::Matchers.define :never_raise do |exception_class|
     end
   end
 
-  failure_message_for_should do |player|
+  failure_message do |player|
     global_result
   end
 end
