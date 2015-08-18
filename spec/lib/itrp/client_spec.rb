@@ -173,6 +173,13 @@ describe Itrp::Client do
         expect(stub).to have_been_requested
       end
 
+      it 'should not double escape symbols' do
+        client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+        stub = stub_request(:put, 'https://secret:@api.itrp.com/v1/people/55').with(body: '{"status":"waiting_for"}').to_return(body: {id: 101}.to_json)
+        client.put('people/55', {status: :waiting_for})
+        expect(stub).to have_been_requested
+      end
+
       it 'should handle fancy filter operations' do
         now = DateTime.now
         stub = stub_request(:get, "https://secret:@api.itrp.com/v1/people?created_at=>#{now.new_offset(0).iso8601}&id!=15").to_return(body: {name: 'my name'}.to_json)

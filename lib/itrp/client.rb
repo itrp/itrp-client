@@ -242,7 +242,7 @@ module Itrp
         when :Array       then escape ? value.map{ |v| typecast(v, escape) }.join(',') : value
         # TODO: temporary for special constructions to update contact details, see Request #1444166
         when :Hash        then escape ? value.to_s : value
-        else value.to_json
+        else escape ? value.to_json : value.to_s
       end
     end
 
