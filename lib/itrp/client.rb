@@ -196,7 +196,7 @@ module Itrp
     def expand_header(header = {})
       header = DEFAULT_HEADER.merge(header)
       header['X-ITRP-Account'] = option(:account) if option(:account)
-      header['AUTHORIZATION'] = 'Basic ' + ["#{option(:api_token)}:"].pack("m*")
+      header['AUTHORIZATION'] = 'Basic ' + ["#{option(:api_token)}:x"].pack("m*")
       if option(:source)
         header['X-ITRP-Source'] = option(:source)
         header['HTTP_USER_AGENT'] = option(:source)

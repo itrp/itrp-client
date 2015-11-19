@@ -22,19 +22,19 @@ describe Itrp::Attachments do
     end
 
     it 'should show a error if no attachment may be uploaded' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/sites/1?attachment_upload_token=true').to_return(body: {name: 'site 1'}.to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/sites/1?attachment_upload_token=true').to_return(body: {name: 'site 1'}.to_json)
       expect_log('Attachments not allowed for /sites/1', :error)
       expect(@attachments.upload_attachments!('/sites/1', {attachments: ['file1.png']})).to be_nil
     end
 
     it 'should raise an exception if no attachment may be uploaded' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/sites/1?attachment_upload_token=true').to_return(body: {name: 'site 1'}.to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/sites/1?attachment_upload_token=true').to_return(body: {name: 'site 1'}.to_json)
       message = 'Attachments not allowed for /sites/1'
       expect{ @attachments.upload_attachments!('/sites/1', {attachments: ['file1.png'], attachments_exception: true}) }.to raise_error(::Itrp::UploadFailed, message)
     end
 
     it 'should add /new to the path for new records' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/sites/new?attachment_upload_token=true').to_return(body: {missing: 'storage'}.to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/sites/new?attachment_upload_token=true').to_return(body: {missing: 'storage'}.to_json)
       expect_log('Attachments not allowed for /sites', :error)
       expect(@attachments.upload_attachments!('/sites', {attachments: ['file1.png']})).to be_nil
     end
@@ -50,7 +50,7 @@ describe Itrp::Attachments do
       [:any_other_model,   :note]].each do |model, attribute|
 
       it "should replace :attachments with :#{attribute}_attachments after upload at /#{model}" do
-        stub_request(:get, "https://secret:@api.itrp.com/v1/#{model}/new?attachment_upload_token=true").to_return(body: {storage_upload: 'conf'}.to_json)
+        stub_request(:get, "https://secret:x@api.itrp.com/v1/#{model}/new?attachment_upload_token=true").to_return(body: {storage_upload: 'conf'}.to_json)
         expect(@attachments).to receive(:upload_attachment).with('conf', 'file1.png', false).ordered{ 'uploaded file1.png' }
         expect(@attachments).to receive(:upload_attachment).with('conf', 'file2.zip', false).ordered{ 'uploaded file2.zip' }
         data = {leave: 'me alone', attachments: %w(file1.png file2.zip)}
@@ -62,7 +62,7 @@ describe Itrp::Attachments do
     end
 
     it 'should set raise_exception flag to true when :attachments_exception is set' do
-      stub_request(:get, 'https://secret:@api.itrp.com/v1/requests/new?attachment_upload_token=true').to_return(body: {storage_upload: 'conf'}.to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/requests/new?attachment_upload_token=true').to_return(body: {storage_upload: 'conf'}.to_json)
       expect(@attachments).to receive(:upload_attachment).with('conf', 'file1.png', true).ordered{ 'uploaded file1.png' }
       data = {leave: 'me alone', attachments: 'file1.png', attachments_exception: true}
       @attachments.upload_attachments!('/requests', data)
@@ -110,7 +110,7 @@ describe Itrp::Attachments do
 
       it 'should sent the upload to AWS' do
         stub_request(:post, 'https://itrp.s3.amazonaws.com/').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: 'OK', status: 303, headers: {'Location' => 'https://mycompany.itrp.com/s3_success?sig=99e82e8a046'})
-        stub_request(:get, "https://secret:@api.itrp.com/v1/s3_success?sig=99e82e8a046&key=#{@key}").to_return(body: {}.to_json)
+        stub_request(:get, "https://secret:x@api.itrp.com/v1/s3_success?sig=99e82e8a046&key=#{@key}").to_return(body: {}.to_json)
         expect(@attachments.send(:upload_attachment, @aws_conf, "#{@fixture_dir}/upload.txt", false)).to eq({key: @key, filesize: 7})
       end
 
@@ -122,7 +122,7 @@ describe Itrp::Attachments do
 
       it 'should report an error when ITRP confirmation fails' do
         stub_request(:post, 'https://itrp.s3.amazonaws.com/').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: 'OK', status: 303, headers: {'Location' => 'https://mycompany.itrp.com/s3_success?sig=99e82e8a046'})
-        stub_request(:get, "https://secret:@api.itrp.com/v1/s3_success?sig=99e82e8a046&key=#{@key}").to_return(body: {message: 'oops!'}.to_json)
+        stub_request(:get, "https://secret:x@api.itrp.com/v1/s3_success?sig=99e82e8a046&key=#{@key}").to_return(body: {message: 'oops!'}.to_json)
         expect_log('Request failed: oops!', :error)
         expect_log("Attachment upload failed: ITRP confirmation s3_success?sig=99e82e8a046 for #{@key} failed: oops!", :error)
         expect(@attachments.send(:upload_attachment, @aws_conf, "#{@fixture_dir}/upload.txt", false)).to be_nil
