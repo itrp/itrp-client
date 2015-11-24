@@ -70,13 +70,14 @@ module Itrp
     def aws_upload(aws, key_template, key, attachment)
       # upload the file to AWS
       response = send_file(aws[:upload_uri], {
+        :'x-amz-server-side-encryption' => 'AES256',
         key: key_template,
         AWSAccessKeyId: aws[:access_key],
         acl: 'private',
         signature: aws[:signature],
-        success_action_redirect: aws[:success_url],
+        success_action_status: 201,
         policy: aws[:policy],
-        file: attachment # file must be last (will that work in Ruby 1.9.3)?
+        file: attachment # file must be last
       })
       # this is a bit of a hack, but Amazon S3 returns only XML :(
       xml = response.raw.body || ''
