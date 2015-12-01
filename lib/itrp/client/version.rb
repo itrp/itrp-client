@@ -1,5 +1,5 @@
 module Itrp
   class Client
-    VERSION = '1.0.12'
+    VERSION = '1.0.13'
   end
 end

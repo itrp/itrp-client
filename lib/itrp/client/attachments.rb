@@ -91,18 +91,16 @@ module Itrp
 
     # upload the file directly to ITRP
     def itrp_upload(itrp, key_template, key, attachment)
-      response = send_file(itrp[:upload_uri], {
-        file: attachment,
-        key: key_template
-      })
+      uri = itrp[:upload_uri] =~ /\/v1/ ? itrp[:upload_uri] : itrp[:upload_uri].gsub('/attachments', '/v1/attachments')
+      response = send_file(uri, {file: attachment, key: key_template}, @client.send(:expand_header))
       raise "ITRP upload to #{itrp[:upload_uri]} for #{key} failed: #{response.message}" unless response.valid?
     end
 
-    def send_file(uri, params)
+    def send_file(uri, params, basic_auth_header = {})
       params = {:'Content-Type' => MIME::Types.type_for(params[:key])[0] || MIME::Types["application/octet-stream"][0]}.merge(params)
       data, header = Itrp::Multipart::Post.prepare_query(params)
       ssl, domain, port, path = @client.send(:ssl_domain_port_path, uri)
-      request = Net::HTTP::Post.new(path, header)
+      request = Net::HTTP::Post.new(path, basic_auth_header.merge(header))
       request.body = data
       @client.send(:_send, request, domain, port, ssl)
     end

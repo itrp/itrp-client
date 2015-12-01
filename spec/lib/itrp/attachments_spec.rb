@@ -155,19 +155,19 @@ describe Itrp::Attachments do
       end
 
       it 'should sent the upload to ITRP' do
-        stub_request(:post, 'https://api.itrp.com/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {}.to_json)
+        stub_request(:post, 'https://secret:x@api.itrp.com/v1/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {}.to_json)
         expect(@attachments.send(:upload_attachment, @itrp_conf, "#{@fixture_dir}/upload.txt", false)).to eq({key: @key, filesize: 7})
       end
 
       it 'should report an error when ITRP upload fails' do
-        stub_request(:post, 'https://api.itrp.com/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
+        stub_request(:post, 'https://secret:x@api.itrp.com/v1/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
         expect_log('Request failed: oops!', :error)
         expect_log("Attachment upload failed: ITRP upload to https://api.itrp.com/attachments for #{@key} failed: oops!", :error)
         expect(@attachments.send(:upload_attachment, @itrp_conf, "#{@fixture_dir}/upload.txt", false)).to be_nil
       end
 
       it 'should raise an exception when ITRP upload fails' do
-        stub_request(:post, 'https://api.itrp.com/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
+        stub_request(:post, 'https://secret:x@api.itrp.com/v1/attachments').with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {message: 'oops!'}.to_json)
         expect_log('Request failed: oops!', :error)
         message = "Attachment upload failed: ITRP upload to https://api.itrp.com/attachments for #{@key} failed: oops!"
         expect{ @attachments.send(:upload_attachment, @itrp_conf, "#{@fixture_dir}/upload.txt", true) }.to raise_error(::Itrp::UploadFailed, message)
