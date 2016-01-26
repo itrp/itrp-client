@@ -180,6 +180,21 @@ end
 
 Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
 
+### Delete an existing record
+
+Deleting records is done using the `delete` method.
+
+```
+response = Itrp::Client.new.delete('organizations/88/addresses/')
+if response.valid?
+  puts "Addresses of Organization with id #{response[:id]} successfully removed"
+else
+  puts response.message
+end
+```
+
+Make sure to validate the success by calling `response.valid?` and to take appropriate action in case the response is not valid.
+
 
 ### Note Attachments
 

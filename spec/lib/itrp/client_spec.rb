@@ -214,6 +214,15 @@ describe Itrp::Client do
     end
   end
 
+  context 'delete' do
+    it 'should send delete requests with parameters and headers' do
+      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+      stub = stub_request(:delete, 'https://secret:x@api.itrp.com/v1/people?id=value').with(headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
+      response = client.delete('people', {id: 'value'}, {'X-ITRP-Custom' => 'custom'})
+      expect(stub).to have_been_requested
+    end
+  end
+
   context 'attachments' do
     before(:each) do
       @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
