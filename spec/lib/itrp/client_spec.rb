@@ -66,39 +66,39 @@ describe Itrp::Client do
 
     it 'should set the content type header' do
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').with(headers: {'Content-Type' => 'application/json'}).to_return(body: {name: 'my name'}.to_json)
-      response = @client.get('me')
+      @client.get('me')
       expect(stub).to have_been_requested
     end
 
     it 'should add the X-ITRP-Account header' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, account: 'test')
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').with(headers: {'X-ITRP-Account' => 'test'}).to_return(body: {name: 'my name'}.to_json)
-      response = client.get('me')
+      client.get('me')
       expect(stub).to have_been_requested
     end
 
     it 'should add the X-ITRP-Source header' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1, source: 'myapp')
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').with(headers: {'X-ITRP-Source' => 'myapp'}).to_return(body: {name: 'my name'}.to_json)
-      response = client.get('me')
+      client.get('me')
       expect(stub).to have_been_requested
     end
 
     it 'should be able to override headers' do
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').with(headers: {'Content-Type' => 'application/x-www-form-urlencoded'}).to_return(body: {name: 'my name'}.to_json)
-      response = @client.get('me', {}, {'Content-Type' => 'application/x-www-form-urlencoded'})
+      @client.get('me', {}, {'Content-Type' => 'application/x-www-form-urlencoded'})
       expect(stub).to have_been_requested
     end
 
     it 'should set the other headers' do
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').with(headers: {'X-ITRP-Other' => 'value'}).to_return(body: {name: 'my name'}.to_json)
-      response = @client.get('me', {}, {'X-ITRP-Other' => 'value'})
+      @client.get('me', {}, {'X-ITRP-Other' => 'value'})
       expect(stub).to have_been_requested
     end
 
     it 'should accept headers in the each call' do
       stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').with(headers: {'X-ITRP-Secret' => 'special'}).to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
-      nr_of_requests = @client.each('requests', {fields: 'subject'}, {'X-ITRP-Secret' => 'special'}) do |request|
+      @client.each('requests', {fields: 'subject'}, {'X-ITRP-Secret' => 'special'}) do |request|
         expect(request[:subject]).to eq("Subject #{request[:id]}")
       end
       expect(stub).to have_been_requested
@@ -111,7 +111,7 @@ describe Itrp::Client do
     end
 
     it 'should yield each result' do
-      stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/requests?fields=subject&page=1&per_page=100').to_return(body: [{id: 1, subject: 'Subject 1'}, {id: 2, subject: 'Subject 2'}, {id: 3, subject: 'Subject 3'}].to_json)
       nr_of_requests = @client.each('requests', {fields: 'subject'}) do |request|
         expect(request[:subject]).to eq("Subject #{request[:id]}")
       end
@@ -154,7 +154,7 @@ describe Itrp::Client do
       ].each do |param_value, url_value|
         it "should cast #{param_value.class.name}: '#{param_value}' to '#{url_value}'" do
           stub = stub_request(:get, "https://secret:x@api.itrp.com/v1/me?value=#{url_value}").to_return(body: {name: 'my name'}.to_json)
-          response = @client.get('me', {value: param_value})
+          @client.get('me', {value: param_value})
           expect(stub).to have_been_requested
         end
       end
@@ -168,14 +168,14 @@ describe Itrp::Client do
 
       it 'should not cast hashes in post and put calls' do
         client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-        stub = stub_request(:put, 'https://secret:x@api.itrp.com/v1/people/55').with(body: '{"contacts_attributes":{"0":{"protocol":"email","label":"work","uri":"work@example.com"}}}', headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
+        stub = stub_request(:patch, 'https://secret:x@api.itrp.com/v1/people/55').with(body: '{"contacts_attributes":{"0":{"protocol":"email","label":"work","uri":"work@example.com"}}}', headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
         client.put('people/55', {contacts_attributes: {0 => {protocol: :email, label: :work, uri: 'work@example.com'}}}, {'X-ITRP-Custom' => 'custom'})
         expect(stub).to have_been_requested
       end
 
       it 'should not double escape symbols' do
         client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-        stub = stub_request(:put, 'https://secret:x@api.itrp.com/v1/people/55').with(body: '{"status":"waiting_for"}').to_return(body: {id: 101}.to_json)
+        stub = stub_request(:patch, 'https://secret:x@api.itrp.com/v1/people/55').with(body: '{"status":"waiting_for"}').to_return(body: {id: 101}.to_json)
         client.put('people/55', {status: :waiting_for})
         expect(stub).to have_been_requested
       end
@@ -183,25 +183,26 @@ describe Itrp::Client do
       it 'should handle fancy filter operations' do
         now = DateTime.now
         stub = stub_request(:get, "https://secret:x@api.itrp.com/v1/people?created_at=>#{now.new_offset(0).iso8601}&id!=15").to_return(body: {name: 'my name'}.to_json)
-        response = @client.get('people', {'created_at=>' => now, 'id!=' => 15})
+        @client.get('people', {'created_at=>' => now, 'id!=' => 15})
         expect(stub).to have_been_requested
       end
 
       it 'should append parameters' do
-        now = DateTime.now
         stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/people?id!=15&primary_email=me@example.com').to_return(body: {name: 'my name'}.to_json)
-        response = @client.get('people?id!=15', {primary_email: 'me@example.com'})
+        @client.get('people?id!=15', {primary_email: 'me@example.com'})
         expect(stub).to have_been_requested
       end
     end
   end
 
-  context 'put' do
-    it 'should send put requests with parameters and headers' do
-      client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-      stub = stub_request(:put, 'https://secret:x@api.itrp.com/v1/people/1').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 1}.to_json)
-      response = client.put('people/1', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
-      expect(stub).to have_been_requested
+  context 'patch' do
+    [:put, :patch].each do |method|
+      it 'should send patch requests with parameters and headers for #{method} calls' do
+        client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
+        stub = stub_request(:patch, 'https://secret:x@api.itrp.com/v1/people/1').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 1}.to_json)
+        client.send(method, 'people/1', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
+        expect(stub).to have_been_requested
+      end
     end
   end
 
@@ -209,7 +210,7 @@ describe Itrp::Client do
     it 'should send post requests with parameters and headers' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       stub = stub_request(:post, 'https://secret:x@api.itrp.com/v1/people').with(body: {name: 'New Name'}, headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
-      response = client.post('people', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
+      client.post('people', {name: 'New Name'}, {'X-ITRP-Custom' => 'custom'})
       expect(stub).to have_been_requested
     end
   end
@@ -218,7 +219,7 @@ describe Itrp::Client do
     it 'should send delete requests with parameters and headers' do
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
       stub = stub_request(:delete, 'https://secret:x@api.itrp.com/v1/people?id=value').with(headers: {'X-ITRP-Custom' => 'custom'}).to_return(body: {id: 101}.to_json)
-      response = client.delete('people', {id: 'value'}, {'X-ITRP-Custom' => 'custom'})
+      client.delete('people', {id: 'value'}, {'X-ITRP-Custom' => 'custom'})
       expect(stub).to have_been_requested
     end
   end
@@ -256,7 +257,7 @@ describe Itrp::Client do
       expect(response[:upload_called]).to be_falsey
     end
 
-    [:post, :put].each do |method|
+    [:post, :patch].each do |method|
       it "should parse attachments for #{method} requests" do
         attachments = double('Itrp::Attachments')
         expect(attachments).to receive(:upload_attachments!) do |path, data|
@@ -517,10 +518,10 @@ describe Itrp::Client do
     end
 
     it 'should be possible to override the default logger' do
-      stub = stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').to_return(body: {name: 'my name'}.to_json)
+      stub_request(:get, 'https://secret:x@api.itrp.com/v1/me').to_return(body: {name: 'my name'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug, @logger )
       expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug, @logger )
-      response = @client.get('me')
+      @client.get('me')
     end
   end
 end
