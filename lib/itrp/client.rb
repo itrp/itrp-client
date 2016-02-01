@@ -98,9 +98,14 @@ module Itrp
       _send(Net::HTTP::Get.new(expand_path(path, params), expand_header(header)))
     end
 
-    # send HTTPS PUT request and return instance of Itrp::Response
+    # send HTTPS DELETE request and return instance of Itrp::Response
+    def delete(path, params = {}, header = {})
+      _send(Net::HTTP::Delete.new(expand_path(path, params), expand_header(header)))
+    end
+
+    # send HTTPS PATCH request and return instance of Itrp::Response
     def put(path, data = {}, header = {})
-      _send(json_request(Net::HTTP::Put, path, data, header))
+      _send(json_request(Net::HTTP::Patch, path, data, header))
     end
     alias_method :patch, :put
 
