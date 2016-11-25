@@ -11,6 +11,17 @@ SimpleCov.start
 require 'rspec'
 require 'webmock/rspec'
 
+# Patch for https://github.com/bblimke/webmock/issues/623
+module WebMock
+  class BodyPattern
+    def assert_non_multipart_body(content_type)
+      # if content_type =~ %r{^multipart/form-data}
+      #   raise ArgumentError.new("WebMock does not support matching body for multipart/form-data requests yet :(")
+      # end
+    end
+  end
+end
+
 require 'itrp/client'
 
 # Requires supporting ruby files with custom matchers and macros, etc,

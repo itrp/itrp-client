@@ -225,7 +225,7 @@ module Itrp
       path
     end
 
-    # Expand one parameter, e.g. (:"created_at=>", DateTime.now) to "created_at=%3E22011-12-16T12:24:41+01:00"
+    # Expand one parameter, e.g. (:"created_at=>", DateTime.now) to "created_at=%3E22011-12-16T12:24:41%2B01:00"
     def expand_param(key, value)
       param = uri_escape(key.to_s).gsub('%3D', '=') # handle :"updated_at=>" or :"person_id!=" parameters
       param << '=' unless key['=']
@@ -237,10 +237,10 @@ module Itrp
     def typecast(value, escape = true)
       case value.class.name.to_sym
         when :NilClass    then ''
-        when :String      then escape ? URI.escape(value) : value
+        when :String      then escape ? uri_escape(value) : value
         when :TrueClass   then 'true'
         when :FalseClass  then 'false'
-        when :DateTime    then value.new_offset(0).iso8601
+        when :DateTime    then datetime = value.new_offset(0).iso8601; escape ? uri_escape(datetime) : datetime
         when :Date        then value.strftime("%Y-%m-%d")
         when :Time        then value.strftime("%H:%M")
         # do not convert arrays in put/post requests as squashing arrays is only used in filtering
@@ -278,33 +278,6 @@ module Itrp
       response
     end
 
-    # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:rate_limit_block+
-    def _send_with_rate_limit_block(request, domain = @domain, port = @port, ssl = @ssl)
-      return _send_without_rate_limit_block(request, domain, port, ssl) unless option(:block_at_rate_limit)
-      now = Time.now
-      begin
-        _response = _send_without_rate_limit_block(request, domain, port, ssl)
-        @logger.warn { "Request throttled, trying again in 5 minutes: #{_response.message}" } and sleep(300) if _response.throttled?
-      end while _response.throttled? && (Time.now - now) < 3660 # max 1 hour and 1 minute
-      _response
-    end
-    alias_method_chain :_send, :rate_limit_block
-
-    # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:retries+
-    def _send_with_retries(request, domain = @domain, port = @port, ssl = @ssl)
-      retries = 0
-      sleep_time = 2
-      total_retry_time = 0
-      begin
-        _response = _send_without_retries(request, domain, port, ssl)
-        @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
-        total_retry_time += sleep_time
-        sleep_time *= 2
-      end while _response.empty? && total_retry_time < option(:max_retry_time)
-      _response
-    end
-    alias_method_chain :_send, :retries
-
     # parse the given URI to [domain, port, ssl, path]
     def ssl_domain_port_path(uri)
       uri = URI.parse(uri)
@@ -313,6 +286,37 @@ module Itrp
     end
 
   end
+
+  module SendWithRateLimitBlock
+    # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:rate_limit_block+
+    def _send(request, domain = @domain, port = @port, ssl = @ssl)
+      return super(request, domain, port, ssl) unless option(:block_at_rate_limit)
+      now = Time.now
+      begin
+        _response = super(request, domain, port, ssl)
+        @logger.warn { "Request throttled, trying again in 5 minutes: #{_response.message}" } and sleep(300) if _response.throttled?
+      end while _response.throttled? && (Time.now - now) < 3660 # max 1 hour and 1 minute
+      _response
+    end
+  end
+  Client.send(:prepend, SendWithRateLimitBlock)
+
+  module SendWithRetries
+    # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:retries+
+    def _send(request, domain = @domain, port = @port, ssl = @ssl)
+      retries = 0
+      sleep_time = 2
+      total_retry_time = 0
+      begin
+        _response = super(request, domain, port, ssl)
+        @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
+        total_retry_time += sleep_time
+        sleep_time *= 2
+      end while _response.empty? && total_retry_time < option(:max_retry_time)
+      _response
+    end
+  end
+  Client.send(:prepend, SendWithRetries)
 end
 
 # HTTPS with certificate bundle
