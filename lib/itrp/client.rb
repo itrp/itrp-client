@@ -132,7 +132,11 @@ module Itrp
         token = response[:token]
         while true
           response = get("/import/#{token}")
-          raise ::Itrp::Exception.new("Unable to monitor progress for #{type} import. #{response.message}") unless response.valid?
+          unless response.valid?
+            sleep(5)
+            response = get("/import/#{token}") # single retry to recover from a network error
+            raise ::Itrp::Exception.new("Unable to monitor progress for #{type} import. #{response.message}") unless response.valid?
+          end
           # wait 30 seconds while the response is OK and import is still busy
           break unless ['queued', 'processing'].include?(response[:state])
           @logger.debug { "Import of '#{csv.path}' is #{response[:state]}. Checking again in 30 seconds." }
@@ -165,7 +169,11 @@ module Itrp
         token = response[:token]
         while true
           response = get("/export/#{token}")
-          raise ::Itrp::Exception.new("Unable to monitor progress for '#{data[:type]}' export. #{response.message}") unless response.valid?
+          unless response.valid?
+            sleep(5)
+            response = get("/export/#{token}") # single retry to recover from a network error
+            raise ::Itrp::Exception.new("Unable to monitor progress for '#{data[:type]}' export. #{response.message}") unless response.valid?
+          end
           # wait 30 seconds while the response is OK and export is still busy
           break unless ['queued', 'processing'].include?(response[:state])
           @logger.debug { "Export of '#{data[:type]}' is #{response[:state]}. Checking again in 30 seconds." }

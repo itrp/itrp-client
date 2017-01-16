@@ -287,7 +287,6 @@ describe Itrp::Client do
       @import_processing_response = {body: {state: 'processing'}.to_json}
       @import_done_response = {body: {state: 'done', results: {errors: 0, updated: 1, created: 1, failures: 0, unchanged: 0, deleted: 0}}.to_json}
       @import_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
-      @server_failed_response = {body: {state: 'error', message: 'Invalid byte sequence in UTF-8 on line 2', results: {errors: 1, updated: 1, created: 0, failures: 1, unchanged: 0, deleted: 0}}.to_json}
       allow(@client).to receive(:sleep)
     end
 
@@ -307,7 +306,10 @@ describe Itrp::Client do
 
     it 'should wait for the import to complete' do
       stub_request(:post, 'https://api.itrp.com/v1/import').with(basic_auth: ['secret', 'x']).with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/import/68ef5ef0f64c0').with(basic_auth: ['secret', 'x']).to_return(@import_queued_response, @import_processing_response, @import_done_response)
+      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/import/68ef5ef0f64c0').with(basic_auth: ['secret', 'x'])
+                        .to_return(@import_queued_response, @import_processing_response)
+                        .then.to_raise(StandardError.new('network error'))
+                        .then.to_return(@import_done_response)
 
       # verify the correct log statement are made
       expect_log('Sending POST request to api.itrp.com:443/v1/import', :debug)
@@ -320,12 +322,14 @@ describe Itrp::Client do
       expect_log("Response:\n{\n  \"state\": \"processing\"\n}", :debug)
       expect_log("Import of '#{@fixture_dir}/people.csv' is processing. Checking again in 30 seconds.", :debug)
       expect_log('Sending GET request to api.itrp.com:443/v1/import/68ef5ef0f64c0', :debug)
+      expect_log("Request failed: 500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'", :error)
+      expect_log('Sending GET request to api.itrp.com:443/v1/import/68ef5ef0f64c0', :debug)
       expect_log("Response:\n{\n  \"state\": \"done\",\n  \"results\": {\n    \"errors\": 0,\n    \"updated\": 1,\n    \"created\": 1,\n    \"failures\": 0,\n    \"unchanged\": 0,\n    \"deleted\": 0\n  }\n}", :debug)
 
       response = @client.import("#{@fixture_dir}/people.csv", 'people', true)
       expect(response[:state]).to eq('done')
       expect(response[:results][:updated]).to eq(1)
-      expect(progress_stub).to have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(4)
     end
 
     it 'should wait for the import to fail' do
@@ -333,15 +337,17 @@ describe Itrp::Client do
       progress_stub = stub_request(:get, 'https://api.itrp.com/v1/import/68ef5ef0f64c0').with(basic_auth: ['secret', 'x']).to_return(@import_queued_response, @import_processing_response, @import_failed_response)
 
       expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. Invalid byte sequence in UTF-8 on line 2")
-      expect(progress_stub).to have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(4)
     end
 
     it 'should not continue when there is an error connecting to ITRP' do
       stub_request(:post, 'https://api.itrp.com/v1/import').with(basic_auth: ['secret', 'x']).with(body: @multi_part_body, headers: @multi_part_headers).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/import/68ef5ef0f64c0').with(basic_auth: ['secret', 'x']).to_return(@import_queued_response, @import_processing_response).then.to_raise(StandardError.new('network error'))
+      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/import/68ef5ef0f64c0').with(basic_auth: ['secret', 'x'])
+                        .to_return(@import_queued_response, @import_processing_response)
+                        .then.to_raise(StandardError.new('network error')) # twice
 
       expect{ @client.import("#{@fixture_dir}/people.csv", 'people', true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for people import. 500: No Response from Server - network error for 'api.itrp.com:443/v1/import/68ef5ef0f64c0'")
-      expect(progress_stub).to have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(4)
     end
 
     it 'should return an invalid response in case waiting for progress is false' do
@@ -395,7 +401,10 @@ describe Itrp::Client do
 
     it 'should wait for the export to complete' do
       stub_request(:post, 'https://api.itrp.com/v1/export').with(basic_auth: ['secret', 'x']).with(body: {type: 'people'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/export/68ef5ef0f64c0').with(basic_auth: ['secret', 'x']).to_return(@export_queued_response, @export_processing_response, @export_done_response)
+      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/export/68ef5ef0f64c0').with(basic_auth: ['secret', 'x'])
+                        .to_return(@export_queued_response, @export_processing_response)
+                        .then.to_raise(StandardError.new('network error'))
+                        .then.to_return(@export_done_response)
 
       # verify the correct log statement are made
       expect_log('Sending POST request to api.itrp.com:443/v1/export', :debug)
@@ -408,20 +417,24 @@ describe Itrp::Client do
       expect_log(%(Response:\n{\n  "state": "processing"\n}), :debug)
       expect_log("Export of 'people' is processing. Checking again in 30 seconds.", :debug)
       expect_log('Sending GET request to api.itrp.com:443/v1/export/68ef5ef0f64c0', :debug)
+      expect_log("Request failed: 500: No Response from Server - network error for 'api.itrp.com:443/v1/export/68ef5ef0f64c0'", :error)
+      expect_log('Sending GET request to api.itrp.com:443/v1/export/68ef5ef0f64c0', :debug)
       expect_log(%(Response:\n{\n  "state": "done",\n  "url": "https://download.example.com/export.zip?AWSAccessKeyId=12345"\n}), :debug)
 
       response = @client.export('people', nil, true)
       expect(response[:state]).to eq('done')
       expect(response[:url]).to eq('https://download.example.com/export.zip?AWSAccessKeyId=12345')
-      expect(progress_stub).to have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(4)
     end
 
     it 'should not continue when there is an error connecting to ITRP' do
       stub_request(:post, 'https://api.itrp.com/v1/export').with(basic_auth: ['secret', 'x']).with(body: {type: 'people'}).to_return(body: {token: '68ef5ef0f64c0'}.to_json)
-      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/export/68ef5ef0f64c0').with(basic_auth: ['secret', 'x']).to_return(@export_queued_response, @export_processing_response).then.to_raise(StandardError.new('network error'))
+      progress_stub = stub_request(:get, 'https://api.itrp.com/v1/export/68ef5ef0f64c0').with(basic_auth: ['secret', 'x'])
+                        .to_return(@export_queued_response, @export_processing_response)
+                        .then.to_raise(StandardError.new('network error')) # twice
 
       expect{ @client.export('people', nil, true) }.to raise_error(Itrp::Exception, "Unable to monitor progress for 'people' export. 500: No Response from Server - network error for 'api.itrp.com:443/v1/export/68ef5ef0f64c0'")
-      expect(progress_stub).to have_been_requested.times(3)
+      expect(progress_stub).to have_been_requested.times(4)
     end
 
     it 'should return an invalid response in case waiting for progress is false' do
