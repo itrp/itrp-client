@@ -310,17 +310,17 @@ module Itrp
   Client.send(:prepend, SendWithRateLimitBlock)
 
   module SendWithRetries
-    # Wraps the _send method with retries when the server does not responsd, see +initialize+ option +:retries+
+    # Wraps the _send method with retries when the server does not respond, see +initialize+ option +:retries+
     def _send(request, domain = @domain, port = @port, ssl = @ssl)
       retries = 0
       sleep_time = 2
       total_retry_time = 0
       begin
         _response = super(request, domain, port, ssl)
-        @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if _response.empty? && option(:max_retry_time) > 0
+        @logger.warn { "Request failed, retry ##{retries += 1} in #{sleep_time} seconds: #{_response.message}" } and sleep(sleep_time) if (_response.raw.code.to_s != '204' && _response.empty?) && option(:max_retry_time) > 0
         total_retry_time += sleep_time
         sleep_time *= 2
-      end while _response.empty? && total_retry_time < option(:max_retry_time)
+      end while (_response.raw.code.to_s != '204' && _response.empty?) && total_retry_time < option(:max_retry_time)
       _response
     end
   end

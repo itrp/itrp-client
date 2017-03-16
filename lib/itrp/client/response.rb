@@ -50,7 +50,7 @@ module Itrp
 
     # +true+ if the server did not respond at all
     def empty?
-      @response.body.nil?
+      @response.body.blank?
     end
 
     # +true+ if no 'message' is given (and the JSON could be parsed)
