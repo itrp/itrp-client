@@ -308,6 +308,13 @@ By default all actions on the ITRP Client will block until the ITRP API is acces
 
 By setting the _block_at_rate_limit_ to `true` in the [configuration](#global-configuration) all actions will also block in case the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is reached. The action is retried every 5 minutes until the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is lifted again, which might take up to 1 hour.
 
+### Translations
+
+When exporting translations, the _locale_ parameter is required:
+
+```
+  response = Itrp::Client.new.export('translations', nil, false, 'nl')
+```
 
 ### Exception handling
 
