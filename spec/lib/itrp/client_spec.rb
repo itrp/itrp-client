@@ -281,8 +281,9 @@ describe Itrp::Client do
 
   context 'import' do
     before(:each) do
+      csv_mime_type = ['text/csv', 'text/comma-separated-values'].detect{|t| MIME::Types[t].any?} # which mime type is used depends on version of mime-types gem
       @client = Itrp::Client.new(api_token: 'secret', max_retry_time: -1)
-      @multi_part_body = "--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\npeople\r\n--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"file\"; filename=\"#{@fixture_dir}/people.csv\"\r\nContent-Type: text/comma-separated-values\r\n\r\nPrimary Email,Name\nchess.cole@example.com,Chess Cole\ned.turner@example.com,Ed Turner\r\n--0123456789ABLEWASIEREISAWELBA9876543210--"
+      @multi_part_body = "--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\npeople\r\n--0123456789ABLEWASIEREISAWELBA9876543210\r\nContent-Disposition: form-data; name=\"file\"; filename=\"#{@fixture_dir}/people.csv\"\r\nContent-Type: #{csv_mime_type}\r\n\r\nPrimary Email,Name\nchess.cole@example.com,Chess Cole\ned.turner@example.com,Ed Turner\r\n--0123456789ABLEWASIEREISAWELBA9876543210--"
       @multi_part_headers = {'Accept'=>'*/*', 'Content-Type'=>'multipart/form-data; boundary=0123456789ABLEWASIEREISAWELBA9876543210', 'User-Agent'=>'Mozilla/5.0 (Macintosh; U; PPC Mac OS X; en-us) AppleWebKit/523.10.6 (KHTML, like Gecko) Version/3.0.4 Safari/523.10.6'}
 
       @import_queued_response = {body: {state: 'queued'}.to_json}
@@ -476,10 +477,11 @@ describe Itrp::Client do
 
     it 'should not retry 4 times when max_retry_time = 16' do
       stub = stub_request(:get, 'https://api.itrp.com/v1/me').with(basic_auth: ['secret', 'x']).to_raise(StandardError.new('network error'))
-      [2,4,8,16].each_with_index do |secs, i|
+      [2,4,8].each_with_index do |secs, i|
         expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
         expect_log("Request failed, retry ##{i+1} in #{secs} seconds: 500: No Response from Server - network error for 'api.itrp.com:443/v1/me'", :warn)
       end
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
 
       client = Itrp::Client.new(api_token: 'secret', max_retry_time: 16)
       allow(client).to receive(:sleep)
@@ -518,10 +520,40 @@ describe Itrp::Client do
       expect(response.message).to eq('429: Too Many Requests')
     end
 
-    it 'should block on rate limit when block_at_rate_limit is true' do
+    it 'should block on rate limit (max 300 seconds) when block_at_rate_limit is true' do
       stub = stub_request(:get, 'https://api.itrp.com/v1/me').with(basic_auth: ['secret', 'x']).to_return(status: 429, body: {message: 'Too Many Requests'}.to_json).then.to_return(body: {name: 'my name'}.to_json)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
-      expect_log('Request throttled, trying again in 5 minutes: 429: Too Many Requests', :warn)
+      expect_log('Request throttled, trying again in 300 seconds: 429: Too Many Requests', :warn)
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
+      expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug )
+
+      client = Itrp::Client.new(api_token: 'secret', block_at_rate_limit: true)
+      allow(client).to receive(:sleep)
+      response = client.get('me')
+      expect(stub).to have_been_requested.times(2)
+      expect(response.valid?).to be_truthy
+      expect(response[:name]).to eq('my name')
+    end
+
+    it 'should block on rate limit using Retry-After when block_at_rate_limit is true' do
+      stub = stub_request(:get, 'https://api.itrp.com/v1/me').with(basic_auth: ['secret', 'x']).to_return(status: 429, body: {message: 'Too Many Requests'}.to_json, headers: {'Retry-After' => '20'}).then.to_return(body: {name: 'my name'}.to_json)
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
+      expect_log('Request throttled, trying again in 20 seconds: 429: Too Many Requests', :warn)
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
+      expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug )
+
+      client = Itrp::Client.new(api_token: 'secret', block_at_rate_limit: true)
+      allow(client).to receive(:sleep)
+      response = client.get('me')
+      expect(stub).to have_been_requested.times(2)
+      expect(response.valid?).to be_truthy
+      expect(response[:name]).to eq('my name')
+    end
+
+    it 'should block on rate limit using Retry-After with minimum of 2 seconds when block_at_rate_limit is true' do
+      stub = stub_request(:get, 'https://api.itrp.com/v1/me').with(basic_auth: ['secret', 'x']).to_return(status: 429, body: {message: 'Too Many Requests'}.to_json, headers: {'Retry-After' => '1'}).then.to_return(body: {name: 'my name'}.to_json)
+      expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
+      expect_log('Request throttled, trying again in 2 seconds: 429: Too Many Requests', :warn)
       expect_log('Sending GET request to api.itrp.com:443/v1/me', :debug )
       expect_log(%(Response:\n{\n  "name": "my name"\n}), :debug )
 

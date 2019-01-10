@@ -111,6 +111,10 @@ module Itrp
       !!(@response.code.to_s == '429' || (message && message =~ /Too Many Requests/))
     end
 
+    def retry_after
+      @current_page ||= @response.header['Retry-After'].to_i
+    end
+
     def to_s
       valid? ? json.to_s : message
     end
