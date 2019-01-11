@@ -1,6 +1,10 @@
+## DEPRECATED
+⚠️ The ITRP Client has been replaced by the [4me SDK Ruby Client](https://github.com/code4me/4me-sdk-ruby).
+
 # Itrp::Client
 
 Client for accessing the [ITRP REST API](http://developer.itrp.com/v1/)
+
 
 ## Installation
 
@@ -37,7 +41,7 @@ All options available:
 * _api_token_:      (**required**) The [ITRP API token](http://developer.itrp.com/v1/#api-tokens)
 * _account_:        Specify a [different account](http://developer.itrp.com/v1/#multiple-accounts) to work with
 * _source_:         The [source](http://developer.itrp.com/v1/general/source/) used when creating new records
-* _max_retry_time_: maximum nr of seconds to wait for server to respond (default = 5400 = 1.5 hours)<br/>
+* _max_retry_time_: maximum nr of seconds to retry a request on an invalid response (default = 5400 = 1.5 hours)<br/>
   The sleep time between retries starts at 2 seconds and doubles after each retry, i.e.
   2, 6, 18, 54, 162, 486, 1458, 4374, 13122, ... seconds.<br/>
   Set to 0 to prevent retries.
@@ -305,9 +309,9 @@ Note that blocking for the export to finish is recommended as you will get direc
 
 ### Blocking
 
-By default all actions on the ITRP Client will block until the ITRP API is accessible, see the _max_retry_time_ option in the [configuration](#global-configuration). This is especially helpfull for flaky internet connections.
-
 By setting the _block_at_rate_limit_ to `true` in the [configuration](#global-configuration) all actions will also block in case the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is reached. The action is retried every 5 minutes until the [rate limit](http://developer.itrp.com/v1/#rate-limiting) is lifted again, which might take up to 1 hour.
+
+You can change the amount of time the client waits for the rate limiter by lowering the _max_retry_time_ in the [configuration](#global-configuration) to e.g. 300 seconds (5 minutes).
 
 ### Translations
 
